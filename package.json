@@ -1,0 +1,19 @@
+{
+  "name": "sda-e-mic",
+  "version": "1.0.0",
+  "description": "supaya mahasiswa bisa membuka mic dari HP, lalu suaranya dimunculkan di speaker",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hzzkygcs/SDA-E-mic.git"
+  },
+  "author": "Immanuel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hzzkygcs/SDA-E-mic/issues"
+  },
+  "homepage": "https://github.com/Hzzkygcs/SDA-E-mic#readme"
+}
