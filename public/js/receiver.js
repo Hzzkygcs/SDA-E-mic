@@ -1,27 +1,13 @@
-let receiverIceCandidateWebsocket = new WebsocketCommunicationProtocol("/receiver/ice-candidate");
 const receiverSdpWebsocket = new WebsocketCommunicationProtocol("/receiver/sdp");
 setTimeout(() => {
-    console.assert(receiverIceCandidateWebsocket.websocket.readyState === 1);
     console.assert(receiverSdpWebsocket.websocket.readyState === 1);
     console.log("assert");
-}, 1000);
+}, 3000);
 
 
-/**
- *
- * @param offerObj
- * @return {Promise<{rtcConnection: RTCPeerConnection, answer: RTCSessionDescriptionInit, stream: MediaStream}>}
- */
-async function createAnswer(offerObj){
+
+function createRtcConnection(){
     const rtcConnection = new RTCPeerConnection(webRtcConfiguration);
-    connectionCheckViaDatachannel(rtcConnection);
-
-    const stream = new MediaStream();
-    rtcConnection.ontrack = function (event){
-        event.streams[0].getTracks().forEach(track => {
-            stream.addTrack(track);
-        })
-    }
 
     const iceCandidateGatheringComplete = new Deferred();
     rtcConnection.onicecandidate = async function (ev){
@@ -33,10 +19,30 @@ async function createAnswer(offerObj){
         console.log("ice gathering completed");
 
         iceCandidateGatheringComplete.resolve(rtcConnection.localDescription);
+    }
 
-        // receiverIceCandidateWebsocket.sendData({
-        //     candidate: event.candidate
-        // });
+    return {
+        'rtcConnection': rtcConnection,
+        'iceGatheringCompletePromise': iceCandidateGatheringComplete.promise,
+    };
+}
+
+
+
+/**
+ *
+ * @param {RTCPeerConnection} rtcConnection
+ * @param offerObj
+ * @return {Promise<{rtcConnection: RTCPeerConnection, answer: RTCSessionDescriptionInit, stream: MediaStream}>}
+ */
+async function createAnswer(rtcConnection, offerObj){
+    connectionCheckViaDatachannel(rtcConnection);
+
+    const stream = new MediaStream();
+    rtcConnection.ontrack = function (event){
+        event.streams[0].getTracks().forEach(track => {
+            stream.addTrack(track);
+        })
     }
 
     console.log(offerObj);
@@ -46,11 +52,21 @@ async function createAnswer(offerObj){
     let answer = await rtcConnection.createAnswer();
     await rtcConnection.setLocalDescription(answer);
     return {
-        'answer': rtcConnection.localDescription,
-        'rtcConnection': rtcConnection,
         'stream': stream,
-        'iceGatheringCompletePromise': iceCandidateGatheringComplete.promise,
     };
+}
+
+
+function onListeningStopped() {
+    document.getElementById("listen-button").value = "Start";
+}
+
+function onTryingToListen() {
+    document.getElementById("listen-button").value = "Starting";
+}
+
+function onListeningStarted() {
+    document.getElementById("listen-button").value = "Listening";
 }
 
 
@@ -62,19 +78,22 @@ let receiverRtcConnection = null;
 // receiver can only receive one peer at a time
 async function startListening(){
     console.log("listening...");
+    onTryingToListen();
+
     listening = true;
     let prevRtcConnection = null;
     let stopPrevIceCandidateListener = () => {};
 
     while (listening){
+        onListeningStarted();
+
         const {offer} = await receiverSdpWebsocket.getOrWaitForData();
-        console.log("received new offer");
-        console.log(stopPrevIceCandidateListener);
         stopPrevIceCandidateListener();
         if (prevRtcConnection != null)
             prevRtcConnection.close();
 
-        const {answer, rtcConnection, stream, iceGatheringCompletePromise} = await createAnswer(offer);
+        const {rtcConnection, iceGatheringCompletePromise} = createRtcConnection();
+        const {stream} = await createAnswer(rtcConnection, offer);
         console.log("setting srcObj to "+ stream);
         document.getElementById("speaker").srcObject = stream;
         document.getElementById("speaker").play();
@@ -89,6 +108,7 @@ async function startListening(){
         prevRtcConnection = rtcConnection;
         receiverRtcConnection = rtcConnection;
     }
+    onListeningStopped();
     console.log("listening stopped");
 }
 
@@ -99,5 +119,3 @@ function connectionCheckViaDatachannel(rtcConnection){
         rtcConnection.dc.onopen = (e) => console.log("Connection opened");
     }
 }
-
-startListening();

@@ -1,7 +1,5 @@
-const senderIceCandidateWebsocket = new WebsocketCommunicationProtocol("/sender/ice-candidate");
 const senderSdpWebsocket = new WebsocketCommunicationProtocol("/sender/sdp");
 setTimeout(() => {
-    console.assert(senderIceCandidateWebsocket.websocket.readyState === 1);
     console.assert(senderSdpWebsocket.websocket.readyState === 1);
     console.log("assert");
 }, 1000);
@@ -20,11 +18,12 @@ async function createOffer(stream){
     });
 
     dc = rtcConnection.createDataChannel("mychannell");
+    dc.onclose = onDisconnected;
 
     const iceCandidateGatheringComplete = new Deferred();
 
     let iceCandidateCounter = 0;
-    rtcConnection.onicecandidate = async function (ev){
+    rtcConnection.onicecandidate = async function (_ev){
         console.log("gotten an ice candidate");
         iceCandidateCounter += 1;
 
@@ -60,21 +59,39 @@ async function createOffer(stream){
 }
 
 
+async function onDisconnected(e){
+    started = true;
+    await toggleMicrophoneMute()
+}
 
+
+
+let started = false;
+let rtcConnection;
+let micStream;
+async function toggleMicrophoneMute(){
+    started = !started;
+    if (started) {
+        document.getElementById("mic-button").value = "Unmuted";
+        const temp = await startStream();
+        rtcConnection = temp.rtcConnection;
+        micStream = temp.stream;
+    }else {
+        document.getElementById("mic-button").value = "Muted";
+        document.getElementById("mic-button");
+        await stopStream(micStream, rtcConnection);
+    }
+}
 
 
 let senderRtcConnection = null;
-async function startStream(listenToSelf=false) {
+async function startStream() {
     console.log("clicked");
+    senderSdpWebsocket.clearReceivedMessage();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
     console.log("gotten media");
 
-    const {offer, rtcConnection, iceGatheringCompletePromise} = await createOffer(stream);
-    if (listenToSelf)
-        $('#speaker')[0].srcObject = stream;
-
-
-
+    const {rtcConnection, iceGatheringCompletePromise} = await createOffer(stream);
     senderRtcConnection = rtcConnection;
 
     console.log("ice gathering");
@@ -91,10 +108,15 @@ async function startStream(listenToSelf=false) {
         await rtcConnection.setRemoteDescription(answerFromRemoteWebRtc.answer);
         console.log("received answer");
     }
-
-    // const answerFromRemoteWebRtc = await senderSdpWebsocket.getOrWaitForData();
-    // await rtcConnection.setRemoteDescription(answerFromRemoteWebRtc.answer);
-    // console.log("received answer");
-
+    return {
+        rtcConnection: rtcConnection,
+        stream: stream
+    };
 }
 
+async function stopStream(micStream, rtcConnection){
+    micStream.getTracks().forEach(function(track) {
+        track.stop();
+    });
+    rtcConnection.close();
+}

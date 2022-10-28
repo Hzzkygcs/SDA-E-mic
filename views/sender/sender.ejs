@@ -11,8 +11,9 @@
     <script src="/static/js/sender.js"></script>
 </head>
 <body>
-<input type="button" value="open mic" onclick="startStream()" style="font-size: 25px;">
-<p id="console-log"></p>
+    <input id="mic-button" type="button" value="muted" onclick="toggleMicrophoneMute()" style="font-size: 25px;">
+    <audio id="speaker" autoplay></audio>
+    <p id="console-log"></p>
 
 
 </body>

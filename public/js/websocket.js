@@ -30,6 +30,10 @@ class WebsocketCommunicationProtocol{
         return this.receivedMessagesQueue.shift();  // pop left
     }
 
+    clearReceivedMessage(){
+        this.receivedMessagesQueue = [];
+    }
+
     async getOrWaitForData(){
         const data = this.getData();
 
