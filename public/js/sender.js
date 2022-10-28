@@ -13,7 +13,6 @@ async function getDevices(){
 }
 
 let dc;
-
 async function createOffer(stream){
     const rtcConnection = new RTCPeerConnection(webRtcConfiguration);
     stream.getTracks().forEach((track) => {
@@ -61,16 +60,14 @@ async function createOffer(stream){
 }
 
 
-let senderRtcConnection = null;
 
+
+
+let senderRtcConnection = null;
 async function startStream(listenToSelf=false) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true,
-        video:
-            {
-                width: { max: 360 },
-                height: { max: 280 },
-                frameRate: { ideal: 3, max: 5 }
-    }});
+    console.log("clicked");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
+    console.log("gotten media");
 
     const {offer, rtcConnection, iceGatheringCompletePromise} = await createOffer(stream);
     if (listenToSelf)

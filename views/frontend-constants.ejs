@@ -9,4 +9,11 @@
 
     const socketProtocol = (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
     const WEBSOCKET_SERVER_ADDR = socketProtocol + '//' + window.location.host;
+
+<!--    <% if (process.env.NODE_ENV === 'development'){ %>-->
+        // const WEBSOCKET_SERVER_ADDR = "ws://localhost:8080";
+<!--    <% }else{ %>-->
+
+
+<!--    <% } %>-->
 </script>

@@ -9,6 +9,21 @@ class Deferred {
 }
 
 
+document.addEventListener("DOMContentLoaded", () => {
+    let oldClog = console.log;
+    console.log = (obj) => {
+        oldClog(obj);
+        const console_log_element = document.getElementById("console-log");
+        console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + obj;
+    }
+
+    window.onunhandledrejection = event => {
+        console.log(`${event.reason}`);
+    };
+});
+
+
+
 /**
  * @param {RTCPeerConnection} rtcConnection
  * @param {WebsocketCommunicationProtocol} websocket
