@@ -1,0 +1,12 @@
+<script>
+    let webRtcConfiguration = {
+        iceServers: [{
+            "urls": [
+                "stun:stun.l.google.com:19302",
+                "stun:stun2.l.google.com:19302",
+            ]
+        }]};
+
+    const socketProtocol = (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
+    const WEBSOCKET_SERVER_ADDR = socketProtocol + '//' + window.location.host;
+</script>
