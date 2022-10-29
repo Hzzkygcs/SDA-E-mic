@@ -1,7 +1,12 @@
+class CancelledPromiseQueueError extends Error{}
+
 class WebsocketCommunicationProtocol{
     websocket = null;
     receivedMessagesQueue = [];
-    promiseResolveFuncQueue = [];
+    /**
+     * @type {Deferred[]}
+     */
+    deferredPromisesQueue = [];
 
     constructor(path) {
         this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + path);
@@ -11,13 +16,13 @@ class WebsocketCommunicationProtocol{
 
     _onReceiveMessage(message){
         const data = JSON.parse(message.data);
-        if (this.promiseResolveFuncQueue.length === 0) {
+        if (this.deferredPromisesQueue.length === 0) {
             this.receivedMessagesQueue.push(data);
             return;
         }
 
-        const promiseResolveFunc = this.promiseResolveFuncQueue.shift();
-        promiseResolveFunc(data);
+        const deferredPromises = this.deferredPromisesQueue.shift();
+        deferredPromises.resolve(data);
     }
 
     sendData(data) {
@@ -35,35 +40,34 @@ class WebsocketCommunicationProtocol{
     }
 
 
-    async deferredGetOrWaitForData(){
-        const data = this.getData();
 
+
+
+    clearPromiseQueue(){
+        for (const deferred of this.deferredPromisesQueue) {
+            deferred.resolve(null);
+        }
+        this.deferredPromisesQueue = [];
+    }
+
+    /**
+     * @return {Deferred}
+     */
+    deferredGetOrWaitForData(){
+        const data = this.getData();
         const ret = new Deferred();
 
         if (data == null){
-            // this.promiseResolveFuncQueue.push(ret);
+            this.deferredPromisesQueue.push(ret);
         }else{
-            // promiseResolveFunc(data);
+            ret.resolve(data);
         }
 
         return ret;
     }
 
-    async getOrWaitForData(){
-        const data = this.getData();
-
-        let promiseResolveFunc = null;
-        const promise = new Promise((resolve, _reject) => {
-            promiseResolveFunc = resolve;
-        });
-
-        if (data == null){
-            this.promiseResolveFuncQueue.push(promiseResolveFunc);
-        }else{
-            promiseResolveFunc(data);
-        }
-
-        return promise;
+    async getOrWaitForData() {
+        return this.deferredGetOrWaitForData().promise;
     }
 
     /**

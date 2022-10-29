@@ -6,18 +6,21 @@
     const TURN_SERVER_ADDR = window.location.protocol + '//' + window.location.host;
 
     let webRtcConfiguration = {
-        iceServers: [{
+        iceServers: [
+            /*{
             "urls": `turn:${TURN_SERVER_ADDR}`,
             username: 'client-123',
             credentials: 'pass-pass-word'
-        }, {
+        }, */
+            {
             "urls": [
                 "stun:stun.l.google.com:19302",
                 "stun:stun2.l.google.com:19302",
             ],
             username: 'client-123',
             credentials: 'pass-pass-word'
-        }]};
+        }
+        ]};
 
 <!--    <% if (process.env.NODE_ENV === 'development'){ %>-->
         // const WEBSOCKET_SERVER_ADDR = "ws://localhost:8080";
