@@ -1,0 +1,62 @@
+html, body{
+    padding: 0;
+    margin: 0;
+    background-color: #1c1c1c;
+    color: #ffffff;
+}
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.container{
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+.btn {
+    display:block;
+    height: 300px;
+    width: 300px;
+    border-radius: 50%;
+    border: 0px solid red;
+    cursor: pointer;
+
+    transition: background-color 0.3s;
+}
+
+.btn-label{
+    font-size: 120px;
+    text-align: center;
+}
+
+#speaker-or-mic-btn:not(.muted){
+    background-color: mediumseagreen;
+}
+
+#speaker-or-mic-btn:not(.muted):hover{
+    background-color: #42b876;
+}
+
+#speaker-or-mic-btn.muted{
+    background-color: orangered;
+}
+#speaker-or-mic-btn.muted:hover{
+    background-color: #ff581a;
+}
+
+
+#speaker-or-mic-btn.connecting{
+    background-color: #ffaf1a;
+}
+#speaker-or-mic-btn.connecting:hover{
+    background-color: #ffb634;
+}
+
+
+#speaker-or-mic-btn.muted .unmuted-icon, #speaker-or-mic-btn.connecting .unmuted-icon, #speaker-or-mic-btn:not(.muted):not(.connecting) .muted-icon, .hidden{
+    display: none!important;
+    font-size: 0;
+    opacity: 0;
+}

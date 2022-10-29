@@ -39,9 +39,6 @@ async function createOffer(stream){
         iceCandidateGatheringComplete.resolve(rtcConnection.localDescription);
 
 
-        // senderIceCandidateWebsocket.sendData({
-        //     candidate: event.candidate
-        // });
     }
 
     // const stopListeningToIceCandidate = listenToIceCandidateSignal(rtcConnection, senderIceCandidateWebsocket);
@@ -66,19 +63,37 @@ async function onDisconnected(e){
 
 
 
+function onMuted() {
+    document.getElementById("speaker-or-mic-btn").classList.remove("connecting");
+    document.getElementById("speaker-or-mic-btn").classList.add("muted");
+}
+
+function onConnecting() {
+    document.getElementById("speaker-or-mic-btn").classList.remove("muted");
+    document.getElementById("speaker-or-mic-btn").classList.add("connecting");
+}
+
+
+function onUnmuted() {
+    document.getElementById("speaker-or-mic-btn").classList.remove("muted");
+    document.getElementById("speaker-or-mic-btn").classList.remove("connecting");
+}
+
+
+
 let started = false;
 let rtcConnection;
 let micStream;
 async function toggleMicrophoneMute(){
     started = !started;
     if (started) {
-        document.getElementById("mic-button").value = "Unmuted";
+        onConnecting();
         const temp = await startStream();
         rtcConnection = temp.rtcConnection;
         micStream = temp.stream;
     }else {
-        document.getElementById("mic-button").value = "Muted";
-        document.getElementById("mic-button");
+        document.getElementById("speaker-or-mic-btn").classList.toggle("muted");
+        document.getElementById("speaker-or-mic-btn");
         await stopStream(micStream, rtcConnection);
     }
 }
@@ -102,12 +117,15 @@ async function startStream() {
     });
 
     const answerFromRemoteWebRtc = await senderSdpWebsocket.getOrWaitForData();
-    console.log(answerFromRemoteWebRtc);
+    console.log("gotten answer: " + answerFromRemoteWebRtc);
+
+    onUnmuted();
 
     if (!rtcConnection.currentRemoteDescription) {
         await rtcConnection.setRemoteDescription(answerFromRemoteWebRtc.answer);
         console.log("received answer");
     }
+
     return {
         rtcConnection: rtcConnection,
         stream: stream
@@ -115,8 +133,11 @@ async function startStream() {
 }
 
 async function stopStream(micStream, rtcConnection){
-    micStream.getTracks().forEach(function(track) {
-        track.stop();
-    });
+    onMuted();
+
+    if (micStream != null)
+        micStream.getTracks().forEach(function(track) {
+            track.stop();
+        });
     rtcConnection.close();
 }
