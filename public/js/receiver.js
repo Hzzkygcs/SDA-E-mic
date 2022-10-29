@@ -58,46 +58,66 @@ async function createAnswer(rtcConnection, offerObj){
 
 
 function onListeningStopped() {
-    document.getElementById("listen-button").value = "Start";
+    document.getElementById("speaker-or-mic-btn").classList.remove("connecting");
+    document.getElementById("speaker-or-mic-btn").classList.add("muted");
 }
 
-function onTryingToListen() {
-    document.getElementById("listen-button").value = "Starting";
+function onConnecting() {
+    document.getElementById("speaker-or-mic-btn").classList.add("connecting");
+    document.getElementById("speaker-or-mic-btn").classList.remove("muted");
 }
 
 function onListeningStarted() {
-    document.getElementById("listen-button").value = "Listening";
+    document.getElementById("speaker-or-mic-btn").classList.remove("connecting");
+    document.getElementById("speaker-or-mic-btn").classList.remove("muted");
 }
 
 
-
-
-let listening = false;
+/**
+ * @type {Deferred | null}
+ */
+let listening = null;
 let receiverRtcConnection = null;
+
+async function onClick(){
+    if (listening == null)
+        startListening();
+    else{
+        listening.resolve(null);
+        listening = null;
+    }
+}
+
 
 // receiver can only receive one peer at a time
 async function startListening(){
+    receiverSdpWebsocket.clearReceivedMessage();
+    receiverSdpWebsocket.clearPromiseQueue();
     console.log("listening...");
-    onTryingToListen();
+    onConnecting();
 
-    listening = true;
+    listening = new Deferred();
     let prevRtcConnection = null;
     let stopPrevIceCandidateListener = () => {};
 
-    while (listening){
-        onListeningStarted();
-
-        const {offer} = await receiverSdpWebsocket.getOrWaitForData();
+    while (true){
+        const data = await Promise.any([listening.promise, receiverSdpWebsocket.getOrWaitForData()]);
+        if (data == null) break;
+        const {offer} = data;
         stopPrevIceCandidateListener();
         if (prevRtcConnection != null)
             prevRtcConnection.close();
 
-        const {rtcConnection, iceGatheringCompletePromise} = createRtcConnection();
-        const {stream} = await createAnswer(rtcConnection, offer);
+        open_cnt += 1;
+        onListeningStarted();
+
+        const {rtcConnection: localRtcConnection, iceGatheringCompletePromise} = createRtcConnection();
+        const {stream} = await createAnswer(localRtcConnection, offer);
+
         console.log("setting srcObj to "+ stream);
         document.getElementById("speaker").srcObject = stream;
         document.getElementById("speaker").play();
-        // stopPrevIceCandidateListener = listenToIceCandidateSignal(rtcConnection, receiverIceCandidateWebsocket);
+        // stopPrevIceCandidateListener = listenToIceCandidateSignal(localRtcConnection, receiverIceCandidateWebsocket);
 
         console.log("sending answer");
         receiverSdpWebsocket.sendData({
@@ -105,17 +125,30 @@ async function startListening(){
         });
 
 
-        prevRtcConnection = rtcConnection;
-        receiverRtcConnection = rtcConnection;
+        prevRtcConnection = localRtcConnection;
+        receiverRtcConnection = localRtcConnection;
+        rtcConnection = localRtcConnection;
     }
+    if (rtcConnection != null)
+        rtcConnection.close();
     onListeningStopped();
     console.log("listening stopped");
 }
 
+
+let open_cnt = 0;
 function connectionCheckViaDatachannel(rtcConnection){
     rtcConnection.ondatachannel = (datachannelEvent) => {
         rtcConnection.dc = datachannelEvent.channel;
         rtcConnection.dc.onmessage = (e) => console.log("msg: " + e.data);
-        rtcConnection.dc.onopen = (e) => console.log("Connection opened");
+        rtcConnection.dc.onopen = (e) => {
+            console.log("Connection opened");
+        };
+        rtcConnection.dc.onclosing = () => {
+            open_cnt -= 1;
+            if (open_cnt == 0 && listening != null) {
+                onConnecting();
+            }
+        };
     }
 }

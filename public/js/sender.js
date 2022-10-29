@@ -52,6 +52,7 @@ async function createOffer(stream){
         'offer': offer,
         'rtcConnection': rtcConnection,
         'iceGatheringCompletePromise': iceCandidateGatheringComplete.promise,
+        'dc': dc
     };
 }
 
@@ -102,11 +103,13 @@ async function toggleMicrophoneMute(){
 let senderRtcConnection = null;
 async function startStream() {
     console.log("clicked");
+    senderSdpWebsocket.clearPromiseQueue();
     senderSdpWebsocket.clearReceivedMessage();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
     console.log("gotten media");
 
-    const {rtcConnection, iceGatheringCompletePromise} = await createOffer(stream);
+    const {rtcConnection, iceGatheringCompletePromise, dc} = await createOffer(stream);
+    dc.onopen = () => onUnmuted();
     senderRtcConnection = rtcConnection;
 
     console.log("ice gathering");
@@ -119,7 +122,7 @@ async function startStream() {
     const answerFromRemoteWebRtc = await senderSdpWebsocket.getOrWaitForData();
     console.log("gotten answer: " + answerFromRemoteWebRtc);
 
-    onUnmuted();
+
 
     if (!rtcConnection.currentRemoteDescription) {
         await rtcConnection.setRemoteDescription(answerFromRemoteWebRtc.answer);

@@ -1,7 +1,12 @@
+class CancelledPromiseQueueError extends Error{}
+
 class WebsocketCommunicationProtocol{
     websocket = null;
     receivedMessagesQueue = [];
-    promiseResolveFuncQueue = [];
+    /**
+     * @type {Deferred[]}
+     */
+    deferredPromisesQueue = [];
 
     constructor(path) {
         this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + path);
@@ -11,13 +16,13 @@ class WebsocketCommunicationProtocol{
 
     _onReceiveMessage(message){
         const data = JSON.parse(message.data);
-        if (this.promiseResolveFuncQueue.length === 0) {
+        if (this.deferredPromisesQueue.length === 0) {
             this.receivedMessagesQueue.push(data);
             return;
         }
 
-        const promiseResolveFunc = this.promiseResolveFuncQueue.shift();
-        promiseResolveFunc(data);
+        const deferredPromises = this.deferredPromisesQueue.shift();
+        deferredPromises.resolve(data);
     }
 
     sendData(data) {
@@ -34,20 +39,24 @@ class WebsocketCommunicationProtocol{
         this.receivedMessagesQueue = [];
     }
 
+    clearPromiseQueue(){
+        for (const deferred of this.deferredPromisesQueue) {
+            deferred.resolve(null);
+        }
+        this.deferredPromisesQueue = [];
+    }
+
     async getOrWaitForData(){
         const data = this.getData();
 
-        let promiseResolveFunc = null;
-        const promise = new Promise((resolve, _reject) => {
-            promiseResolveFunc = resolve;
-        });
+        const promise = new Deferred();
 
         if (data == null){
-            this.promiseResolveFuncQueue.push(promiseResolveFunc);
+            this.deferredPromisesQueue.push(promise);
         }else{
-            promiseResolveFunc(data);
+            promise.resolve(data);
         }
 
-        return promise;
+        return promise.promise;
     }
 }

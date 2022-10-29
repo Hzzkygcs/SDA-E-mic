@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>Receiver</title>
 
+    <link href="/static/css/common.css" rel="stylesheet" />
+    <script src="https://kit.fontawesome.com/8aea063d6d.js" crossorigin="anonymous"></script>
+
     <%- include("../frontend-constants.ejs") %>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
     <script src="/static/js/websocket.js"></script>
@@ -11,7 +14,16 @@
     <script src="/static/js/receiver.js"></script>
 </head>
 <body>
-    <input id="listen-button" type="button" value="start listening" onclick="startListening();">
+    <div class="container center">
+        <button id="speaker-or-mic-btn" class="muted btn" onclick="onClick()" style="font-size: 25px;">
+            <i class="muted-icon btn-label fa-solid fa-volume-xmark"></i>
+            <i class="unmuted-icon btn-label fa-solid fa-volume-high"></i>
+        </button>
+        <audio id="speaker" autoplay></audio>
+
+
+    </div>
+
     <audio id="speaker" autoplay></audio>
     <p id="console-log"></p>
 
