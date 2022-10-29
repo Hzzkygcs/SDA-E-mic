@@ -18,6 +18,7 @@ const CERT_PRIVATE_KEY = 'privatekey.key';
 const CERTIFICATE = 'certificate.crt';
 
 const {setupRoutes} = require("./setup/routes");
+const {setupTurnServer} = require("./setup/turn-server");
 setupRoutes(app);
 
 const customHttpsAvailable = (
@@ -27,8 +28,9 @@ const customHttpsAvailable = (
 );
 
 let PORT = process.env.PORT || 8080;
+setupTurnServer(PORT);
 if (customHttpsAvailable){
-    var options = {
+    let options = {
         key: fs.readFileSync(CERT_PRIVATE_KEY),
         cert: fs.readFileSync(CERTIFICATE)
     };
