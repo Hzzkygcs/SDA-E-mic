@@ -16,13 +16,20 @@ class WebsocketCommunicationProtocol{
 
     _onReceiveMessage(message){
         const data = JSON.parse(message.data);
-        if (this.deferredPromisesQueue.length === 0) {
-            this.receivedMessagesQueue.push(data);
+
+        let deferredPromises = null;
+        while (this.deferredPromisesQueue.length !== 0){
+            deferredPromises = this.deferredPromisesQueue.shift();
+            if (deferredPromises.state === Deferred.PENDING)
+                break;
+        }
+
+        if (deferredPromises != null) {
+            deferredPromises.resolve(data);
             return;
         }
 
-        const deferredPromises = this.deferredPromisesQueue.shift();
-        deferredPromises.resolve(data);
+        this.receivedMessagesQueue.push(data);
     }
 
     sendData(data) {
@@ -39,6 +46,10 @@ class WebsocketCommunicationProtocol{
         this.receivedMessagesQueue = [];
     }
 
+
+
+
+
     clearPromiseQueue(){
         for (const deferred of this.deferredPromisesQueue) {
             deferred.resolve(null);
@@ -46,17 +57,51 @@ class WebsocketCommunicationProtocol{
         this.deferredPromisesQueue = [];
     }
 
-    async getOrWaitForData(){
+    /**
+     * @return {Deferred}
+     */
+    deferredGetOrWaitForData(){
         const data = this.getData();
-
-        const promise = new Deferred();
+        const ret = new Deferred();
 
         if (data == null){
-            this.deferredPromisesQueue.push(promise);
+            this.deferredPromisesQueue.push(ret);
         }else{
-            promise.resolve(data);
+            ret.resolve(data);
         }
 
-        return promise.promise;
+        return ret;
+    }
+
+    async getOrWaitForData() {
+        return this.deferredGetOrWaitForData().promise;
+    }
+
+    /**
+     * @param {Deferred} timeoutDeferred
+     * @return {Deferred}
+     */
+    getOrWaitForDataWithStoppingFlag(timeoutDeferred){
+        const deferredGetData = this.deferredGetOrWaitForData();
+        const ret = new Deferred();
+
+        (async () => {
+            try{
+                const res = await Promise.any([timeoutDeferred.promise, deferredGetData.promise]);
+                // cancel getData
+                if (deferredGetData.state === Deferred.PENDING){
+                    deferredGetData.reject();
+                }
+
+                ret.resolve(res);
+            }catch (e){
+                // cancel getData
+                if (deferredGetData.state === Deferred.PENDING){
+                    deferredGetData.reject();
+                }
+                ret.reject(e);
+            }
+        })();
+        return ret;
     }
 }

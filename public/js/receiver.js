@@ -1,4 +1,5 @@
 const receiverSdpWebsocket = new WebsocketCommunicationProtocol("/receiver/sdp");
+
 setTimeout(() => {
     console.assert(receiverSdpWebsocket.websocket.readyState === 1);
     console.log("assert");
@@ -79,9 +80,13 @@ function onListeningStarted() {
 let listening = null;
 let receiverRtcConnection = null;
 
+
+
+
+
 async function onClick(){
     if (listening == null)
-        startListening();
+        startListeningUsingWebRtc();
     else{
         listening.resolve(null);
         listening = null;
@@ -90,7 +95,7 @@ async function onClick(){
 
 
 // receiver can only receive one peer at a time
-async function startListening(){
+async function startListeningUsingWebRtc(){
     receiverSdpWebsocket.clearReceivedMessage();
     receiverSdpWebsocket.clearPromiseQueue();
     console.log("listening...");
@@ -137,6 +142,7 @@ async function startListening(){
 
 
 let open_cnt = 0;
+
 function connectionCheckViaDatachannel(rtcConnection){
     rtcConnection.ondatachannel = (datachannelEvent) => {
         rtcConnection.dc = datachannelEvent.channel;

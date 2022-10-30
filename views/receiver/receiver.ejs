@@ -12,10 +12,12 @@
     <script src="/static/js/websocket.js"></script>
     <script src="/static/js/common.js"></script>
     <script src="/static/js/receiver.js"></script>
+    <script src="/static/js/receiver-websocket-stream.js"></script>
 </head>
 <body>
     <div class="container center">
-        <button id="speaker-or-mic-btn" class="muted btn" onclick="onClick()" style="font-size: 25px;">
+<!--        <input id="listen-button" type="button" value="start listening" onclick="startListeningUsingWebsocket();">-->
+        <button id="speaker-or-mic-btn" class="muted btn" onclick="startListeningUsingWebsocket(); startListeningUsingWebRtc()" style="font-size: 25px;">
             <i class="muted-icon btn-label fa-solid fa-volume-xmark"></i>
             <i class="unmuted-icon btn-label fa-solid fa-volume-high"></i>
         </button>
@@ -24,7 +26,8 @@
 
     </div>
 
-    <audio id="speaker" autoplay></audio>
+    <audio id="speaker" autoplay crossorigin="anonymous"></audio>
+    <audio id="speaker-for-websocket" autoplay crossorigin="anonymous"></audio>
     <p id="console-log"></p>
 
 </body>

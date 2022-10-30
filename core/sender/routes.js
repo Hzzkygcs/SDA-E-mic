@@ -8,8 +8,19 @@ const router = express.Router();
 
 router.get("/", function (req, res) {
     const debugMode = req.query.debug;
-    res.render("sender/sender", { debugMode: debugMode == null });
+    res.render("sender/sender-mode-selection", { debugMode: debugMode == null, websocket: true });
 });
+
+router.get("/websocket", function (req, res) {
+    const debugMode = req.query.debug;
+    res.render("sender/sender-mic-page", { debugMode: debugMode == null, websocket: true });
+});
+
+router.get("/webrtc", function (req, res) {
+    const debugMode = req.query.debug;
+    res.render("sender/sender-mic-page", { debugMode: debugMode == null, websocket: false });
+});
+
 
 
 
@@ -43,6 +54,23 @@ router.ws('/sdp',
         ws.on('message', function(msg) {
             const websocketClients = websocketStorages.receiverSdp.getWebsockets();
             websocketClients.forEach(client => {
+                client.send(msg)
+            });
+        });
+    }
+);
+
+router.ws('/audio-stream',
+    /**
+     * @param {WebSocket} ws
+     * @param req
+     */
+    function(ws, req) {
+        websocketStorages.senderAudioStream.addSenderWebsocket(ws);
+        console.log("new sender connected (audio-stream)");
+
+        ws.on('message', function(msg) {
+            websocketStorages.receiverAudioStream.getWebsockets().forEach(client => {
                 client.send(msg)
             });
         });
