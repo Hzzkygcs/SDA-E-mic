@@ -84,7 +84,7 @@ let receiverRtcConnection = null;
 
 
 
-async function onClick(){
+async function toggleWebRtc(){
     if (listening == null)
         startListeningUsingWebRtc();
     else{
@@ -119,7 +119,6 @@ async function startListeningUsingWebRtc(){
         const {rtcConnection: localRtcConnection, iceGatheringCompletePromise} = createRtcConnection();
         const {stream} = await createAnswer(localRtcConnection, offer);
 
-        console.log("setting srcObj to "+ stream);
         document.getElementById("speaker").srcObject = stream;
         document.getElementById("speaker").play();
         // stopPrevIceCandidateListener = listenToIceCandidateSignal(localRtcConnection, receiverIceCandidateWebsocket);

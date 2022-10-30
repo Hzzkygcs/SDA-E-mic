@@ -1,5 +1,6 @@
 const senderSdpWebsocket = new WebsocketCommunicationProtocol("/sender/sdp");
 const senderAudioStreamWebsocket = new WebsocketCommunicationProtocol("/sender/audio-stream");
+const THIS_SENDER_ID = Math.floor(Math.random() * 1000);
 
 
 setTimeout(() => {
@@ -69,12 +70,43 @@ async function init(){
 
     const options = generateRecorderRtcOptions();
     options.ondataavailable = async (blob) => {
-        const json = await blobToJsonString(blob);
+        const keepSendingNewBlob = await checkIfNewMessageReceived();
+        if (!keepSendingNewBlob)
+            return;
+
+        const json = await blobToJsonString(blob, {id: THIS_SENDER_ID});
         senderAudioStreamWebsocket.sendData(json);
         console.log("sending new blob");
     }
 
     recorderRtc = new RecordRTC(stream, options);
+}
+
+
+async function checkIfNewMessageReceived(){
+    while (senderAudioStreamWebsocket.hasQueuedMessage()){
+        const message = await senderAudioStreamWebsocket.getOrWaitForData();
+
+        if ('id' in message && message.id !== THIS_SENDER_ID){
+            // if this message was not for me
+            return;
+        }
+
+        const command = message.command;
+        console.log("Received command: " + command);
+
+        if (command === WebsocketStreamConstants.START_FROM_BEGINNING){
+            console.log("Receiver requested to start from beginning");
+            await stopStream(micStream, rtcConnection);
+            await startStream();
+            return false;
+        }else if (command === WebsocketStreamConstants.CONNECTION_ACCEPTED){
+            onUnmuted();
+        }else if (command === WebsocketStreamConstants.CONNECTION_REJECTED){
+            await stopStream(micStream, rtcConnection);
+        }
+    }
+    return true;
 }
 
 
@@ -88,11 +120,8 @@ let speakerElement = null;
 
 async function stopStream(micStream, rtcConnection){
     onMuted();
-
-    speakerElement = document.getElementById("speaker");
-
     recorderRtc.stopRecording(() => {});
-
+    speakerElement = document.getElementById("speaker");
 }
 
 

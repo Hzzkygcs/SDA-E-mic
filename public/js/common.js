@@ -87,11 +87,13 @@ async function blobToBase64(blob){
 
 /**
  * @param {Blob} blob
+ * @param {*} additionalObject
  * @return {Promise<string>}
  */
-async function blobToJsonString(blob){
+async function blobToJsonString(blob, additionalObject={}){
     const b64 = await blobToBase64(blob);
-    return JSON.stringify({blob: b64, type: blob.type});
+    const data = Object.assign({blob: b64, type: blob.type}, additionalObject);
+    return JSON.stringify(data);
 }
 
 /**
@@ -185,4 +187,11 @@ function listenToIceCandidateSignal(rtcConnection, websocket){
         raiseFlag(false);
     };
     return stop;
+}
+
+
+class WebsocketStreamConstants{
+    static START_FROM_BEGINNING = 'START_FROM_BEGINNING';
+    static CONNECTION_ACCEPTED = 'CONNECTION_ACCEPTED';
+    static CONNECTION_REJECTED = 'CONNECTION_REJECTED';
 }

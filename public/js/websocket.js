@@ -32,6 +32,10 @@ class WebsocketCommunicationProtocol{
         this.receivedMessagesQueue.push(data);
     }
 
+    hasQueuedMessage(){
+        return this.receivedMessagesQueue.length > 0;
+    }
+
     sendData(data) {
         this.websocket.send(JSON.stringify(data));
     }
