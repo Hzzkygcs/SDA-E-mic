@@ -135,7 +135,7 @@ class WebsocketAudioStreamLoop{
 
         while (stoppingDeferred.state === Deferred.PENDING){
             console.log("RESET MEDIA");
-            this.inactiveTimer = new Timer(5000);
+            this.inactiveTimer = new Timer(1000);
             const stoppingPromise = Promise.any([this.inactiveTimer.promise, stoppingDeferred.promise]);
 
             this.blobHistory.forEach((i) => this.blobsArr.push(i));
@@ -170,7 +170,8 @@ class WebsocketAudioStreamLoop{
         let counter = 0;
 
         while (this.inactiveTimer.resetTimer()){
-            const newBlobStrData = await receiverAudioStreamWebsocket.getOrWaitForDataWithStoppingPromise(stoppingDeferred);
+            const newBlobStrDataDeferred = receiverAudioStreamWebsocket.getOrWaitForDataWithStoppingFlag(stoppingDeferred);
+            const newBlobStrData = await newBlobStrDataDeferred.promise;
             if (newBlobStrData == null)
                 break
 

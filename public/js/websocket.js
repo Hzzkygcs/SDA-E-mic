@@ -16,13 +16,20 @@ class WebsocketCommunicationProtocol{
 
     _onReceiveMessage(message){
         const data = JSON.parse(message.data);
-        if (this.deferredPromisesQueue.length === 0) {
-            this.receivedMessagesQueue.push(data);
+
+        let deferredPromises = null;
+        while (this.deferredPromisesQueue.length !== 0){
+            deferredPromises = this.deferredPromisesQueue.shift();
+            if (deferredPromises.state === Deferred.PENDING)
+                break;
+        }
+
+        if (deferredPromises != null) {
+            deferredPromises.resolve(data);
             return;
         }
 
-        const deferredPromises = this.deferredPromisesQueue.shift();
-        deferredPromises.resolve(data);
+        this.receivedMessagesQueue.push(data);
     }
 
     sendData(data) {
@@ -72,11 +79,29 @@ class WebsocketCommunicationProtocol{
 
     /**
      * @param {Deferred} timeoutDeferred
-     * @return {Promise<void>}
+     * @return {Deferred}
      */
-    async getOrWaitForDataWithStoppingPromise(timeoutDeferred){
-        const res = await Deferred.any([timeoutDeferred.promise, this.getOrWaitForData()]);
-        if (res !== await this.getOrWaitForData())
-        return ;
+    getOrWaitForDataWithStoppingFlag(timeoutDeferred){
+        const deferredGetData = this.deferredGetOrWaitForData();
+        const ret = new Deferred();
+
+        (async () => {
+            try{
+                const res = await Promise.any([timeoutDeferred.promise, deferredGetData.promise]);
+                // cancel getData
+                if (deferredGetData.state === Deferred.PENDING){
+                    deferredGetData.reject();
+                }
+
+                ret.resolve(res);
+            }catch (e){
+                // cancel getData
+                if (deferredGetData.state === Deferred.PENDING){
+                    deferredGetData.reject();
+                }
+                ret.reject(e);
+            }
+        })();
+        return ret;
     }
 }
