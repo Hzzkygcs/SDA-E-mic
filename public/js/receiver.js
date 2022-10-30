@@ -120,12 +120,16 @@ class WebsocketAudioStreamLoop{
      * @param {Deferred} stoppingDeferred
      */
     async start(stoppingDeferred){
-        media1 = new MediaSource();
-        this.audioElement = new Audio(URL.createObjectURL(media1));
-        this.audioElement.src = URL.createObjectURL(media1);
+        this.blobsArr.length = 0;
+        this.blobHistory.forEach((i) => this.blobsArr.push(i));
+
+        this.sourceBuffer = null;
+        this.mediaSource = new MediaSource();
+        this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
+        this.audioElement.src = URL.createObjectURL(this.mediaSource);
 
         const sourceOpenDeferred = new Deferred();
-        media1.onsourceopen = () => sourceOpenDeferred.resolve();
+        this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
         this.audioElement.play();
         await sourceOpenDeferred.promise;
 
@@ -133,29 +137,8 @@ class WebsocketAudioStreamLoop{
         while (stoppingDeferred.state === Deferred.PENDING){
             console.log("RESET MEDIA");
             this.inactiveTimer = new Timer(5000);
-            const stoppingPromise = Promise.any([this.inactiveTimer.promise, stoppingDeferred.promise]);
-
-            this.blobsArr.length = 0;
-            this.blobHistory.forEach((i) => this.blobsArr.push(i));
-
-            this.sourceBuffer = null;
-            this.mediaSource = new MediaSource();
-            this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
-            this.audioElement.src = URL.createObjectURL(this.mediaSource);
-
-            const sourceOpenDeferred = new Deferred();
-            this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
-            this.audioElement.play();
-            await sourceOpenDeferred.promise;
 
             await this.receiveStreamLoop(stoppingDeferred);
-
-            console.log('exit iter');
-            console.log(this.sourceBuffer);
-
-            if (this.sourceBuffer != null)
-                this.mediaSource.removeSourceBuffer(this.sourceBuffer);
-            this.sourceBuffer = null;
             await sleep(150);
         }
     }
