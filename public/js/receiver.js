@@ -89,7 +89,7 @@ async function startListeningUsingWebsocket(){
 }
 
 let BLOB;
-
+let media1;
 /**
  * @param {Deferred} stoppingDeferredPromise
  * @return {Promise<void>}
@@ -120,11 +120,23 @@ class WebsocketAudioStreamLoop{
      * @param {Deferred} stoppingDeferred
      */
     async start(stoppingDeferred){
+        media1 = new MediaSource();
+        this.audioElement = new Audio(URL.createObjectURL(media1));
+        this.audioElement.src = URL.createObjectURL(media1);
+
+        const sourceOpenDeferred = new Deferred();
+        media1.onsourceopen = () => sourceOpenDeferred.resolve();
+        this.audioElement.play();
+        await sourceOpenDeferred.promise;
+
 
         while (stoppingDeferred.state === Deferred.PENDING){
             console.log("RESET MEDIA");
             this.inactiveTimer = new Timer(5000);
             const stoppingPromise = Promise.any([this.inactiveTimer.promise, stoppingDeferred.promise]);
+
+            this.blobsArr.length = 0;
+            this.blobHistory.forEach((i) => this.blobsArr.push(i));
 
             this.sourceBuffer = null;
             this.mediaSource = new MediaSource();
