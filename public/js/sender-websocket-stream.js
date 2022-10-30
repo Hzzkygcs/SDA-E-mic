@@ -1,4 +1,7 @@
 const senderSdpWebsocket = new WebsocketCommunicationProtocol("/sender/sdp");
+const senderAudioStreamWebsocket = new WebsocketCommunicationProtocol("/sender/audio-stream");
+
+
 setTimeout(() => {
     console.assert(senderSdpWebsocket.websocket.readyState === 1);
     console.log("assert");
@@ -9,9 +12,6 @@ async function getDevices(){
     const devices = await navigator.mediaDevices.enumerateDevices();
     console.log(devices);
 }
-
-
-
 
 
 async function onDisconnected(e){
@@ -42,7 +42,7 @@ function onUnmuted() {
 let started = false;
 let rtcConnection;
 let micStream;
-let mediaRecorder = null;
+let recorderRtc = null;
 async function toggleMicrophoneMute(){
     started = !started;
     if (started) {
@@ -56,17 +56,30 @@ async function toggleMicrophoneMute(){
     }
 }
 
+
+
+
 let audioChunks = [];
 let senderRtcConnection = null;
-async function startStream() {
+async function init(){
     console.log("clicked");
     senderSdpWebsocket.clearReceivedMessage();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
     console.log("gotten media");
 
+    const options = generateRecorderRtcOptions();
+    options.ondataavailable = async (blob) => {
+        const json = await blobToJsonString(blob);
+        senderAudioStreamWebsocket.sendData(json);
+        console.log("sending new blob");
+    }
 
-    mediaRecorder = new RecordRTC(stream, generateRecorderRtcOptions());
-    mediaRecorder.startRecording();
+    recorderRtc = new RecordRTC(stream, options);
+}
+init();
+
+async function startStream() {
+    recorderRtc.startRecording();
 }
 
 let speakerElement = null;
@@ -76,20 +89,8 @@ async function stopStream(micStream, rtcConnection){
     onMuted();
 
     speakerElement = document.getElementById("speaker");
-    // mediaRecorder.stop();
-    // const audioBlob = new Blob(audioChunks);
-    // const audioUrl = URL.createObjectURL(audioBlob);
-    // const audio = new Audio(audioUrl);
-    // await audio.play();
 
-    // let speakerElement = document.getElementById("speaker");
-    // let audioData = new Blob(audioChunks, { 'type': 'audio/mp3;' });
-    // speakerElement.src = window.URL.createObjectURL(audioData);
-
-    mediaRecorder.stopRecording(() => {
-        speakerElement.src = URL.createObjectURL(mediaRecorder.getBlob());
-        speakerElement.play();
-    });
+    recorderRtc.stopRecording(() => {});
 
 }
 
@@ -99,7 +100,9 @@ function generateRecorderRtcOptions(){
         type: 'audio',
         numberOfAudioChannels: isEdge ? 1 : 2,
         checkForInactiveTracks: true,
-        bufferSize: 16384
+        bufferSize: 16384,
+
+        timeSlice: 200,
     };
 
     if(isSafari || isEdge) {

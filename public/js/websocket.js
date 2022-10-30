@@ -50,4 +50,8 @@ class WebsocketCommunicationProtocol{
 
         return promise;
     }
+
+    async getOrWaitForDataWithStoppingPromise(timeoutPromise){
+        return Promise.any([timeoutPromise, this.getOrWaitForData()]);
+    }
 }

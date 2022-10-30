@@ -49,6 +49,23 @@ router.ws('/sdp',
     }
 );
 
+router.ws('/audio-stream',
+    /**
+     * @param {WebSocket} ws
+     * @param req
+     */
+    function(ws, req) {
+        websocketStorages.senderAudioStream.addSenderWebsocket(ws);
+        console.log("new sender connected (audio-stream)");
+
+        ws.on('message', function(msg) {
+            websocketStorages.receiverAudioStream.getWebsockets().forEach(client => {
+                client.send(msg)
+            });
+        });
+    }
+);
+
 
 router.get("/test", function (_req, res) {
     // feel free to remove this

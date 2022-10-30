@@ -47,4 +47,22 @@ router.ws('/sdp',
 );
 
 
+router.ws('/audio-stream',
+    /**
+     * @param {WebSocket} ws
+     * @param req
+     */
+    function(ws, req) {
+        websocketStorages.receiverAudioStream.addSenderWebsocket(ws);
+        console.log("new receiver connected (audio-stream)");
+
+        ws.on('message', function(msg) {
+            websocketStorages.senderAudioStream.getWebsockets().forEach(client => {
+                client.send(msg)
+            });
+        });
+    }
+);
+
+
 module.exports.receiverRouter = router;

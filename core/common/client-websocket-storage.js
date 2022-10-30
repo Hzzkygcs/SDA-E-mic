@@ -41,8 +41,11 @@ class WebsocketStorage{
 const websocketStorages = {
     senderIceCandidate: new WebsocketStorage(),
     senderSdp: new WebsocketStorage(),
+    senderAudioStream: new WebsocketStorage(),
+
     receiverIceCandidate: new WebsocketStorage(),
     receiverSdp: new WebsocketStorage(),
+    receiverAudioStream: new WebsocketStorage(),
 }
 
 module.exports.websocketStorages = websocketStorages;
