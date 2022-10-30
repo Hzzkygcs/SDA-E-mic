@@ -76,9 +76,10 @@ async function init(){
 
     recorderRtc = new RecordRTC(stream, options);
 }
-init();
+
 
 async function startStream() {
+    await init();
     recorderRtc.startRecording();
 }
 

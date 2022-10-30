@@ -120,21 +120,31 @@ class WebsocketAudioStreamLoop{
      * @param {Deferred} stoppingDeferred
      */
     async start(stoppingDeferred){
-        console.log("STREAM LOOP RUN");
 
         while (stoppingDeferred.state === Deferred.PENDING){
-            console.log("Reset media source");
+            console.log("RESET MEDIA");
             this.inactiveTimer = new Timer(5000);
+            const stoppingPromise = Promise.any([this.inactiveTimer.promise, stoppingDeferred.promise]);
+
             this.sourceBuffer = null;
             this.mediaSource = new MediaSource();
-
+            this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
             this.audioElement.src = URL.createObjectURL(this.mediaSource);
-            this.audioElement.play();
 
-            // async
+            const sourceOpenDeferred = new Deferred();
+            this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
+            this.audioElement.play();
+            await sourceOpenDeferred.promise;
+
             await this.receiveStreamLoop(stoppingDeferred);
-            await sleep(50);
-            this.mediaSource.endOfStream();
+
+            console.log('exit iter');
+            console.log(this.sourceBuffer);
+
+            if (this.sourceBuffer != null)
+                this.mediaSource.removeSourceBuffer(this.sourceBuffer);
+            this.sourceBuffer = null;
+            await sleep(150);
         }
     }
 
@@ -152,11 +162,10 @@ class WebsocketAudioStreamLoop{
 
             const newBlob = await jsonStringToBlob(newBlobStrData);
             if (this.sourceBuffer == null) {
+                console.log("RESET SOURCE BUFFER of mediasource " + id(this.mediaSource));
                 BLOB = newBlob;
-                console.log("CREATE NEW BUFFER");
                 this.sourceBuffer = this.mediaSource.addSourceBuffer(newBlob.type);
                 this.sourceBuffer.mode = 'sequence';
-                await sleep(1000);
             }
             console.log(newBlob.type);
 
@@ -171,6 +180,8 @@ class WebsocketAudioStreamLoop{
 
             this.sourceBuffer.onupdateend = () => sourceBufferUpdateFinished.resolve();
             await sourceBufferUpdateFinished.promise;
+            console.log('iter');
+            console.log(this.sourceBuffer);
         }
     }
 }
