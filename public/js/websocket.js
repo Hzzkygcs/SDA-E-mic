@@ -34,6 +34,21 @@ class WebsocketCommunicationProtocol{
         this.receivedMessagesQueue = [];
     }
 
+
+    async deferredGetOrWaitForData(){
+        const data = this.getData();
+
+        const ret = new Deferred();
+
+        if (data == null){
+            // this.promiseResolveFuncQueue.push(ret);
+        }else{
+            // promiseResolveFunc(data);
+        }
+
+        return ret;
+    }
+
     async getOrWaitForData(){
         const data = this.getData();
 
@@ -51,7 +66,13 @@ class WebsocketCommunicationProtocol{
         return promise;
     }
 
-    async getOrWaitForDataWithStoppingPromise(timeoutPromise){
-        return Promise.any([timeoutPromise, this.getOrWaitForData()]);
+    /**
+     * @param {Deferred} timeoutDeferred
+     * @return {Promise<void>}
+     */
+    async getOrWaitForDataWithStoppingPromise(timeoutDeferred){
+        const res = await Deferred.any([timeoutDeferred.promise, this.getOrWaitForData()]);
+        if (res !== await this.getOrWaitForData())
+        return ;
     }
 }

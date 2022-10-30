@@ -20,6 +20,21 @@ class Deferred {
         })
     }
 
+    static any(arrOfPromise){
+        const ret = new Deferred();
+
+        (async () => {
+            try{
+                const res = await Promise.any(arrOfPromise);
+                ret.resolve(res);
+            }catch (e){
+                ret.reject(e);
+            }
+        })();
+
+        return ret;
+    }
+
     static getResolvedDeferred(value){
         const ret = new Deferred();
         ret.resolve(value);
