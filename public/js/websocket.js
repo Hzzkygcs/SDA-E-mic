@@ -22,6 +22,7 @@ class WebsocketCommunicationProtocol{
     }
 
     reconnect(){
+        console.log("Reconnecting websocket");
         this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + this.path);
         this.websocket.onmessage = (message) => {this._onReceiveMessage(message)};
         this.websocket.onopen = (e) => {
