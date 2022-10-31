@@ -98,7 +98,7 @@ async function checkIfNewMessageReceived(){
         if (command === WebsocketStreamConstants.START_FROM_BEGINNING){
             console.log("Receiver requested to start from beginning");
             await stopStream(micStream, rtcConnection);
-            await startStream();
+            // await startStream();
             return false;
         }else if (command === WebsocketStreamConstants.CONNECTION_ACCEPTED){
             onUnmuted();
