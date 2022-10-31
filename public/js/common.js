@@ -9,13 +9,17 @@ class Deferred {
             this.state = Deferred.PENDING;
 
             this.reject = (val) => {
-                this.state = Deferred.REJECTED;
-                reject(val);
+                if (this.state === Deferred.PENDING) {
+                    this.state = Deferred.REJECTED;
+                    reject(val);
+                }
             }
 
             this.resolve = (val) => {
-                this.state = Deferred.RESOLVED;
-                resolve(val);
+                if (this.state === Deferred.PENDING){
+                    this.state = Deferred.RESOLVED;
+                    resolve(val);
+                }
             }
         })
     }

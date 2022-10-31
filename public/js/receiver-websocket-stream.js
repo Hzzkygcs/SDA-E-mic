@@ -109,11 +109,13 @@ class WebsocketAudioStreamLoop{
             const parsed = JSON.parse(newBlobStrData);
             if (this.currentSenderId == null) {
                 this.currentSenderId = parsed.id;
-                receiverAudioStreamWebsocket.sendData({id: parsed.id,
+                // let it async
+                receiverAudioStreamWebsocket.robustSendData({id: parsed.id,
                     command: WebsocketStreamConstants.CONNECTION_ACCEPTED});
             }
             if (this.currentSenderId !== parsed.id){
-                receiverAudioStreamWebsocket.sendData({id: parsed.id,
+                // let it async
+                receiverAudioStreamWebsocket.robustSendData({id: parsed.id,
                     command: WebsocketStreamConstants.CONNECTION_REJECTED});
                 continue;
             }

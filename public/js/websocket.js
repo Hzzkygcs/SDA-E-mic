@@ -9,10 +9,30 @@ class WebsocketCommunicationProtocol{
     deferredPromisesQueue = [];
 
     constructor(path) {
-        this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + path);
-        this.websocket.onmessage = (message) => {this._onReceiveMessage(message)};
-
+        this.path = path;
+        /**
+         * @type {WebSocket | null}
+         */
+        this.websocket = null;
+        this.reconnect();
+        /**
+         * @type {Deferred[]}
+         */
+        this.awaitToOpen = [];
     }
+
+    reconnect(){
+        this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + this.path);
+        this.websocket.onmessage = (message) => {this._onReceiveMessage(message)};
+        this.websocket.onopen = (e) => {
+            for (const deferred of this.awaitToOpen) {
+                if (deferred.state === Deferred.PENDING)
+                    deferred.resolve(true);
+            }
+        };
+    }
+    isOpen() { return this.websocket.readyState === WebSocket.OPEN }
+    isClosed() { return this.websocket.readyState === WebSocket.CLOSED }
 
     _onReceiveMessage(message){
         const data = JSON.parse(message.data);
@@ -40,6 +60,21 @@ class WebsocketCommunicationProtocol{
         this.websocket.send(JSON.stringify(data));
     }
 
+    async ensureWebsocketIsOpen(){
+        if (this.isOpen())
+            return;
+        if (this.isClosed())
+            this.reconnect();
+        const deferred = new Deferred();
+        this.awaitToOpen.push(deferred);
+        await deferred.promise;
+    }
+
+    async robustSendData(data) {
+        await this.ensureWebsocketIsOpen();
+        this.websocket.send(JSON.stringify(data));
+    }
+
     getData(){
         if (this.receivedMessagesQueue.length === 0)
             return null;
@@ -64,11 +99,14 @@ class WebsocketCommunicationProtocol{
     /**
      * @return {Deferred}
      */
-    deferredGetOrWaitForData(){
+    deferredGetOrWaitForData(robustMode=true){
         const data = this.getData();
         const ret = new Deferred();
 
         if (data == null){
+            if (robustMode)
+                // let it async
+                this.ensureWebsocketIsOpen();
             this.deferredPromisesQueue.push(ret);
         }else{
             ret.resolve(data);
@@ -77,8 +115,8 @@ class WebsocketCommunicationProtocol{
         return ret;
     }
 
-    async getOrWaitForData() {
-        return this.deferredGetOrWaitForData().promise;
+    async getOrWaitForData(robustMode=true) {
+        return this.deferredGetOrWaitForData(robustMode).promise;
     }
 
     /**
