@@ -75,7 +75,7 @@ async function init(){
             return;
 
         const json = await blobToJsonString(blob, {id: THIS_SENDER_ID});
-        senderAudioStreamWebsocket.sendData(json);
+        await senderAudioStreamWebsocket.robustSendData(json);
         console.log("sending new blob");
     }
 
