@@ -62,7 +62,9 @@ async function toggleMicrophoneMute(){
 async function init(){
     console.log("clicked");
     senderSdpWebsocket.clearReceivedMessage();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: true}});
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: {
+                echoCancellation: {exact: true}
+            }}});
 
     console.log("gotten media");
 
@@ -125,14 +127,15 @@ async function stopStream(micStream, rtcConnection){
 }
 
 
+
 function generateRecorderRtcOptions(){
     let options = {
         type: 'audio',
-        numberOfAudioChannels: isEdge ? 1 : 2,
+        numberOfAudioChannels: isEdge ? 1 : 1,  // isEdge ? 1 : 2,
         checkForInactiveTracks: true,
         bufferSize: 16384,
 
-        timeSlice: 120,
+        timeSlice: 150,
     };
 
     if(isSafari || isEdge) {
@@ -140,13 +143,13 @@ function generateRecorderRtcOptions(){
     }
 
     if(navigator.platform && navigator.platform.toString().toLowerCase().indexOf('win') === -1) {
-        options.sampleRate = 48000; // or 44100 or remove this line for default
+        options.sampleRate = 12000; // 48000 or 44100 or remove this line for default
     }
 
     if(isSafari) {
-        options.sampleRate = 44100;
+        options.sampleRate = 12000;
         options.bufferSize = 4096;
-        options.numberOfAudioChannels = 2;
+        options.numberOfAudioChannels = 1;  // 2
     }
     return options;
 }

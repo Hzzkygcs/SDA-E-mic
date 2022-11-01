@@ -53,12 +53,15 @@ class WebsocketAudioStreamLoop{
         this.sourceBuffer = null;
         this.inactiveTimer = null;
         this.currentSenderId = null;
+        this.applyFilter = false;
     }
 
     /**
      * @param {Deferred} stoppingDeferred
      */
     async start(stoppingDeferred){
+        this.context = new AudioContext();
+
         while (stoppingDeferred.state === Deferred.PENDING){
             console.log("RESET MEDIASOURCE");
             this.inactiveTimer = new Timer(800);
@@ -69,6 +72,8 @@ class WebsocketAudioStreamLoop{
             this.mediaSource = new MediaSource();
             this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
             this.audioElement.src = URL.createObjectURL(this.mediaSource);
+            if (this.applyFilter)
+                applyFilter(this.context, this.audioElement);
             this.playAudioElement();
             const sourceOpenDeferred = new Deferred();
             this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
@@ -93,7 +98,7 @@ class WebsocketAudioStreamLoop{
                 await sleep(150);
                 receiverAudioStreamWebsocket.clearPromiseQueue();
                 receiverAudioStreamWebsocket.clearReceivedMessage();
-            }else throw e
+            }else console.log(e.message);
         }
     }
 
@@ -170,3 +175,31 @@ class WebsocketAudioStreamLoop{
     }
 }
 
+
+function applyFilter(context, element){
+    console.log("Applying filter");
+    let sourceNode = context.createMediaElementSource(element);
+    let lowshelf = context.createBiquadFilter();
+    let highfilter = context.createBiquadFilter();
+    let bandpass = context.createBiquadFilter();
+
+    // Low-pass filter. See BiquadFilterNode docs http://www.html5rocks.com/en/tutorials/webaudio/intro/
+    lowshelf.type = 'lowshelf';  
+    lowshelf.frequency.value = 3000; // Set cutoff to 440 HZ
+    highfilter.gain.value = 0;
+
+    highfilter.type = 'highshelf';  
+    highfilter.frequency.value = 3200;
+    highfilter.gain.value = -40;
+
+    bandpass.type = 'bandpass';  
+    bandpass.frequency.value = 2200;  
+    bandpass.Q.value = 100;
+
+    sourceNode.connect(lowshelf);
+    sourceNode.connect(highfilter);
+    sourceNode.connect(bandpass);
+    lowshelf.connect(context.destination);
+    highfilter.connect(context.destination);
+    bandpass.connect(context.destination);
+}
