@@ -132,7 +132,7 @@ function generateRecorderRtcOptions(){
         checkForInactiveTracks: true,
         bufferSize: 16384,
 
-        timeSlice: 200,
+        timeSlice: 120,
     };
 
     if(isSafari || isEdge) {

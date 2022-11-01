@@ -90,6 +90,9 @@ class WebsocketAudioStreamLoop{
             // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
             if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
                 this.requestToRetry(e);
+                await sleep(150);
+                receiverAudioStreamWebsocket.clearPromiseQueue();
+                receiverAudioStreamWebsocket.clearReceivedMessage();
             }else throw e
         }
     }
