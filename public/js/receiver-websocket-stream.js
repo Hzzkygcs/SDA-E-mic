@@ -1,13 +1,32 @@
 const receiverAudioStreamWebsocket = new WebsocketCommunicationProtocol("/receiver/audio-stream");
 
+async function toggleListeningUsingWebsocket(){
+    if (startDeferred == null){
+        await startListeningUsingWebsocket();
+    }else {
+        stopListeningUsingWebsocket();
+        onListeningStopped();
+        console.log("listening stopped");
+    }
+}
+
+function stopListeningUsingWebsocket(){
+    startDeferred.resolve(null);
+    startDeferred = null;
+}
+
+
 // receiver should only receive one peer at a time
+let startDeferred;
 async function startListeningUsingWebsocket(){
     const audioElement = document.getElementById('speaker-for-websocket');
     loops = new WebsocketAudioStreamLoop(audioElement);
-    loops.start(new Deferred());
+    startDeferred = new Deferred();
+    loops.start(startDeferred);
     console.log("listening");
 }
 
+var errr;
 
 /**
  * @param {Deferred} stoppingDeferredPromise
@@ -41,9 +60,10 @@ class WebsocketAudioStreamLoop{
      */
     async start(stoppingDeferred){
         while (stoppingDeferred.state === Deferred.PENDING){
-            console.log("RESET MEDIA");
+            console.log("RESET MEDIASOURCE");
             this.inactiveTimer = new Timer(800);
 
+            onConnecting();
             this.currentSenderId = null;
             this.sourceBuffer = null;
             this.mediaSource = new MediaSource();
@@ -66,20 +86,23 @@ class WebsocketAudioStreamLoop{
         try{
             await this.audioElement.play();
         }catch (e){
+            errr = e
             // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
-            if (e instanceof DOMException){
-                this.requestToRetry();
-            }
+            if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
+                this.requestToRetry(e);
+            }else throw e
         }
     }
 
-    requestToRetry(client_id){
-        // const data = {command: 'START_FROM_BEGINNING'};
-        // if (client_id != null)
-        //     data.id = client_id;
-        // receiverAudioStreamWebsocket.sendData(data)
-        // receiverAudioStreamWebsocket.clearPromiseQueue();
-        // receiverAudioStreamWebsocket.clearReceivedMessage();
+    requestToRetry(err, client_id=null){
+        console.log("Requested client to restart");
+
+        const data = {command: 'START_FROM_BEGINNING'};
+        if (client_id != null)
+            data.id = client_id;
+        receiverAudioStreamWebsocket.sendData(data)
+        receiverAudioStreamWebsocket.clearPromiseQueue();
+        receiverAudioStreamWebsocket.clearReceivedMessage();
     }
 
 
@@ -88,9 +111,9 @@ class WebsocketAudioStreamLoop{
             await this.receiveStreamLoop(stoppingDeferred);
         }catch (e) {
             // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
-            if (e instanceof DOMException){
-                this.requestToRetry();
-            }
+            if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
+                this.requestToRetry(e);
+            }else throw e
         }
     }
 
@@ -108,6 +131,7 @@ class WebsocketAudioStreamLoop{
 
             const parsed = JSON.parse(newBlobStrData);
             if (this.currentSenderId == null) {
+                onListeningStarted()
                 this.currentSenderId = parsed.id;
                 // let it async
                 receiverAudioStreamWebsocket.robustSendData({id: parsed.id,

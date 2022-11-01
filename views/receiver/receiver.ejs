@@ -17,8 +17,9 @@
 <body>
     <div class="container center">
 <!--        <input id="listen-button" type="button" value="start listening" onclick="startListeningUsingWebsocket();">-->
-        <button id="speaker-or-mic-btn" class="muted btn" onclick="startListeningUsingWebsocket(); toggleWebRtc()" style="font-size: 25px;">
+        <button id="speaker-or-mic-btn" class="muted btn" onclick="toggleListeningUsingWebsocket(); toggleWebRtc()" style="font-size: 25px;">
             <i class="muted-icon btn-label fa-solid fa-volume-xmark"></i>
+            <i class="connecting-icon btn-label fa-solid fa-volume-high"></i>
             <i class="unmuted-icon btn-label fa-solid fa-volume-high"></i>
         </button>
         <audio id="speaker" autoplay></audio>

@@ -55,7 +55,7 @@ html, body{
 }
 
 
-#speaker-or-mic-btn.muted .unmuted-icon, #speaker-or-mic-btn.connecting .unmuted-icon, #speaker-or-mic-btn:not(.muted):not(.connecting) .muted-icon, .hidden{
+#speaker-or-mic-btn.muted *:not(.muted-icon), #speaker-or-mic-btn.connecting *:not(.connecting-icon), #speaker-or-mic-btn:not(.muted):not(.connecting) *:not(.unmuted-icon), .hidden{
     display: none!important;
     font-size: 0;
     opacity: 0;

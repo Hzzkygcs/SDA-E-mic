@@ -59,13 +59,11 @@ async function toggleMicrophoneMute(){
 
 
 
-
-let audioChunks = [];
-let senderRtcConnection = null;
 async function init(){
     console.log("clicked");
     senderSdpWebsocket.clearReceivedMessage();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: true}});
+
     console.log("gotten media");
 
     const options = generateRecorderRtcOptions();
@@ -111,6 +109,7 @@ async function checkIfNewMessageReceived(){
 
 
 async function startStream() {
+    started = true;
     await init();
     recorderRtc.startRecording();
 }
@@ -119,6 +118,7 @@ let speakerElement = null;
 
 
 async function stopStream(micStream, rtcConnection){
+    started = false;
     onMuted();
     recorderRtc.stopRecording(() => {});
     speakerElement = document.getElementById("speaker");
