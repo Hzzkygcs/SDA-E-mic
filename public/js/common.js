@@ -61,6 +61,11 @@ class Timer extends Deferred{
         this.timeout = null;
     }
 
+    forceResetTimer(new_ms = null){
+        this.state = Deferred.PENDING;
+        this.resetTimer(new_ms);
+    }
+
     resetTimer(new_ms = null){
         if (this.state !== Deferred.PENDING)
             return false;

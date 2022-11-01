@@ -54,6 +54,7 @@ class WebsocketAudioStreamLoop{
         this.inactiveTimer = null;
         this.currentSenderId = null;
         this.applyFilter = false;
+        this.mediaSourceIsFresh = false;
     }
 
     /**
@@ -63,28 +64,36 @@ class WebsocketAudioStreamLoop{
         this.context = new AudioContext();
 
         while (stoppingDeferred.state === Deferred.PENDING){
-            console.log("RESET MEDIASOURCE");
             this.inactiveTimer = new Timer(800);
 
             onConnecting();
-            this.currentSenderId = null;
-            this.sourceBuffer = null;
-            this.mediaSource = new MediaSource();
-            this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
-            this.audioElement.src = URL.createObjectURL(this.mediaSource);
-            if (this.applyFilter)
-                applyFilter(this.context, this.audioElement);
-            this.playAudioElement();
-            const sourceOpenDeferred = new Deferred();
-            this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
-
-            await sourceOpenDeferred.promise;
+            if (!this.mediaSourceIsFresh)
+                await this.resetMediaSource();
             await this.receiveStreamLoopHandled(stoppingDeferred);
 
-            if (this.mediaSource.readyState === "open"){
+            if (this.mediaSource.readyState === "open" && !this.mediaSourceIsFresh){
                 this.mediaSource.endOfStream();
             }
         }
+    }
+
+    async resetMediaSource() {
+        console.log("RESET MEDIASOURCE");
+        console.assert(!this.mediaSourceIsFresh);
+
+        this.currentSenderId = null;
+        this.sourceBuffer = null;
+        this.mediaSourceIsFresh = true;
+        this.mediaSource = new MediaSource();
+        this.audioElement = new Audio(URL.createObjectURL(this.mediaSource));
+        this.audioElement.src = URL.createObjectURL(this.mediaSource);
+        if (this.applyFilter)
+            applyFilter(this.context, this.audioElement);
+        this.playAudioElement();
+        const sourceOpenDeferred = new Deferred();
+        this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
+
+        await sourceOpenDeferred.promise;
     }
 
     async playAudioElement(){
@@ -128,10 +137,12 @@ class WebsocketAudioStreamLoop{
     /**
      * @param {Deferred} stoppingDeferred
      */
-    async receiveStreamLoop(stoppingDeferred){
-        stoppingDeferred = Deferred.any([this.inactiveTimer.promise, stoppingDeferred.promise]);
+    async receiveStreamLoop(stoppingDeferred_){
+        let stoppingDeferred;
 
         while (this.inactiveTimer.resetTimer()){
+            stoppingDeferred = Deferred.any([this.inactiveTimer.promise, stoppingDeferred_.promise]);
+
             const newBlobStrDataDeferred = receiverAudioStreamWebsocket.getOrWaitForDataWithStoppingFlag(stoppingDeferred);
             const newBlobStrData = await newBlobStrDataDeferred.promise;
             if (newBlobStrData == null)
@@ -141,6 +152,7 @@ class WebsocketAudioStreamLoop{
             if (this.currentSenderId == null) {
                 onListeningStarted()
                 this.currentSenderId = parsed.id;
+                this.mediaSourceIsFresh = false;
                 // let it async
                 receiverAudioStreamWebsocket.robustSendData({id: parsed.id,
                     command: WebsocketStreamConstants.CONNECTION_ACCEPTED});
