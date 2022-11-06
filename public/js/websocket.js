@@ -8,6 +8,11 @@ class WebsocketCommunicationProtocol{
      */
     deferredPromisesQueue = [];
 
+    /**
+     * @type {CallableFunction<any, boolean>[]}
+     */
+    listeners = [];
+
     constructor(path) {
         this.path = path;
         /**
@@ -19,6 +24,10 @@ class WebsocketCommunicationProtocol{
          * @type {Deferred[]}
          */
         this.awaitToOpen = [];
+    }
+
+    addListener(func){
+        this.listeners.push(func);
     }
 
     reconnect(){
@@ -71,9 +80,11 @@ class WebsocketCommunicationProtocol{
         await deferred.promise;
     }
 
-    async robustSendData(data) {
+    async robustSendData(data, asJsonStr=false) {
         await this.ensureWebsocketIsOpen();
-        this.websocket.send(JSON.stringify(data));
+        if (!asJsonStr)
+            data = JSON.stringify(data);
+        this.websocket.send(data);
     }
 
     getData(){

@@ -53,12 +53,13 @@ function sleep(ms, returnValue=null) {
 }
 
 class Timer extends Deferred{
-    constructor(ms, returnValue=null){
+    constructor(ms, returnValue=null, listener=null){
         super();
 
         this.ms = ms;
         this.returnValue = returnValue;
         this.timeout = null;
+        this.listener = listener;
     }
 
     forceResetTimer(new_ms = null){
@@ -76,7 +77,11 @@ class Timer extends Deferred{
         if (this.timeout != null){
             clearTimeout(this.timeout);
         }
-        this.timeout = setTimeout(() => {this.resolve(this.returnValue);}, this.ms);
+        this.timeout = setTimeout(() => {
+            this.resolve(this.returnValue);
+            if (this.listener != null)
+                this.listener(this.returnValue);
+        }, this.ms);
 
         return true;
     }
@@ -115,6 +120,16 @@ async function jsonStringToBlob(jsonString){
     return new Blob([resultingBlob], {type: 'audio/webm;codecs=opus'});
 }
 
+
+/**
+ * @param {any} jsonObject
+ * @return {Promise<Blob>}
+ */
+async function jsonObjectToBlob(jsonObject){
+    const resultingBlob = await fetch(jsonObject.blob).then(res => res.blob());
+    return new Blob([resultingBlob], {type: jsonObject.type});
+}
+
 function playSingleBlob(audioElement, blob){
     audioElement.src = URL.createObjectURL(blob);
     audioElement.play();
@@ -138,10 +153,14 @@ const id = (() => {
 })();
 
 
+
+
+
+
 document.addEventListener("DOMContentLoaded", () => {
     let oldClog = console.log;
     console.log = (obj) => {
-        oldClog(obj);
+        oldClog.apply(console, [obj]);
         const console_log_element = document.getElementById("console-log");
         console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + obj;
     }
@@ -200,7 +219,11 @@ function listenToIceCandidateSignal(rtcConnection, websocket){
 
 
 class WebsocketStreamConstants{
+    static REQUEST_TO_CONNECT = 'REQUEST_TO_CONNECT';
+    static UPDATE_QUEUE_STATUS = 'UPDATE_QUEUE_STATUS';
+
     static START_FROM_BEGINNING = 'START_FROM_BEGINNING';
     static CONNECTION_ACCEPTED = 'CONNECTION_ACCEPTED';
     static CONNECTION_REJECTED = 'CONNECTION_REJECTED';
+    static CONNECTION_CLOSED = 'CONNECTION_CLOSED';
 }

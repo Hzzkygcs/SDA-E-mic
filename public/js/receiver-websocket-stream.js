@@ -20,7 +20,7 @@ function stopListeningUsingWebsocket(){
 let startDeferred;
 async function startListeningUsingWebsocket(){
     const audioElement = document.getElementById('speaker-for-websocket');
-    loops = new WebsocketAudioStreamLoop(audioElement);
+    loops = new ConnectionListener(audioElement);
     startDeferred = new Deferred();
     loops.start(startDeferred);
     console.log("listening");
@@ -28,60 +28,137 @@ async function startListeningUsingWebsocket(){
 
 var errr;
 
+
+
+class ConnectionListener{
+    /**
+     * @param {Deferred} stoppingDeferred
+     */
+    async start(stoppingDeferred){
+        this.senderQueue = [];
+        this.activeSender = {};
+        this.maximumActiveSender = 1;
+        await this.receiveStreamLoop(stoppingDeferred);
+    }
+
+
+
+    /**
+     * @param {Deferred} stoppingDeferred
+     */
+    async receiveStreamLoop(stoppingDeferred){
+        while (stoppingDeferred.state === Deferred.PENDING){
+            const newDataDeferred = receiverAudioStreamWebsocket.getOrWaitForDataWithStoppingFlag(stoppingDeferred);
+            const newData = await newDataDeferred.promise;
+            if (newData == null)
+                break
+
+            if (newData.command != null){
+                await this.handleCommand(newData);
+            }else{
+                await this.handleBlobDataForwarding(newData);
+            }
+        }
+        await this.stopAllClient();
+    }
+
+    async handleCommand(parsedCommand){
+        if (parsedCommand.command === WebsocketStreamConstants.REQUEST_TO_CONNECT){
+            this.senderQueue.push(parsedCommand.id);
+            await this.processNextQueue();
+            console.log(this.activeSender);
+        }
+    }
+
+    async handleBlobDataForwarding(parsedData){
+        if (!(parsedData.id in this.activeSender)){
+            console.log(parsedData);
+            console.log(this.activeSender);
+            console.log("Rejected an inactive sender: " + parsedData["id"]);
+            await receiverAudioStreamWebsocket.robustSendData({
+                id: parsedData.id,
+                command: WebsocketStreamConstants.CONNECTION_REJECTED
+            });
+            return;
+        }
+        await this.activeSender[parsedData.id].robustHandleNewBlob(parsedData);
+    }
+
+
+    deactivateSender(senderId){
+        if (!(senderId in this.activeSender))
+            return;
+        delete this.activeSender[senderId];
+    }
+
+    async processNextQueue() {
+        if (this.activeSender.length >= this.maximumActiveSender)
+            return;
+        const sender_id = this.senderQueue.shift();
+
+        this.activeSender[sender_id] = new ConnectionToClient(sender_id,
+            () => this.deactivateSender(sender_id));
+        await this.activeSender[sender_id].resetMediaSource();
+
+        await receiverAudioStreamWebsocket.robustSendData({
+            id: sender_id,
+            command: WebsocketStreamConstants.CONNECTION_ACCEPTED
+        });
+        await this.notifyQueueUpdate();
+    }
+
+    async notifyQueueUpdate(){
+        for (let i = 0; i < this.senderQueue.length; i++) {
+            const clientId = this.senderQueue.shift();
+            await receiverAudioStreamWebsocket.robustSendData({
+                id: clientId,
+                command: WebsocketStreamConstants.UPDATE_QUEUE_STATUS,
+                queue_num: i+1,
+            });
+        }
+    }
+
+
+    async stopAllClient(){
+        this.activeSender = {};
+        const data = {command: WebsocketStreamConstants.CONNECTION_CLOSED};
+        await receiverAudioStreamWebsocket.sendData(data)
+    }
+}
+
+
+
 /**
  * @param {Deferred} stoppingDeferredPromise
  * @return {Promise<void>}
  */
-class WebsocketAudioStreamLoop{
-    constructor(audioElement) {
-        this.blobHistory = [];
-
-        /**
-         * @type {Blob[]}
-         */
-        this.blobsArr = [];
-        this.audioElement = audioElement;
+class ConnectionToClient{
+    constructor(senderId, onConnectionClosed) {
+        this.audioElement = null;
+        this.senderId = senderId;
 
         /**
          * @type {null | MediaSource}
          */
         this.mediaSource = null;
+        this.inactiveTimer = new Timer(1500, null, () => this.triggerConnectionClosed());
+        this.onConnectionClosed = onConnectionClosed;
 
         /**
          * @type {null | SourceBuffer}
          */
         this.sourceBuffer = null;
-        this.inactiveTimer = null;
-        this.currentSenderId = null;
         this.applyFilter = false;
         this.mediaSourceIsFresh = false;
-    }
-
-    /**
-     * @param {Deferred} stoppingDeferred
-     */
-    async start(stoppingDeferred){
         this.context = new AudioContext();
 
-        while (stoppingDeferred.state === Deferred.PENDING){
-            this.inactiveTimer = new Timer(800);
-
-            onConnecting();
-            if (!this.mediaSourceIsFresh)
-                await this.resetMediaSource();
-            await this.receiveStreamLoopHandled(stoppingDeferred);
-
-            if (this.mediaSource.readyState === "open" && !this.mediaSourceIsFresh){
-                this.mediaSource.endOfStream();
-            }
-        }
     }
+
 
     async resetMediaSource() {
         console.log("RESET MEDIASOURCE");
         console.assert(!this.mediaSourceIsFresh);
 
-        this.currentSenderId = null;
         this.sourceBuffer = null;
         this.mediaSourceIsFresh = true;
         this.mediaSource = new MediaSource();
@@ -104,71 +181,42 @@ class WebsocketAudioStreamLoop{
             // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
             if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
                 this.requestToRetry(e);
-                await sleep(150);
-                receiverAudioStreamWebsocket.clearPromiseQueue();
-                receiverAudioStreamWebsocket.clearReceivedMessage();
+                await this.triggerConnectionClosed();
             }else console.log(e.message);
         }
     }
 
-    requestToRetry(err, client_id=null){
+    async triggerConnectionClosed(){
+        console.log("Conenction with " + this.senderId + " is closed");
+        await receiverAudioStreamWebsocket.robustSendData({
+            id: this.senderId,
+            command: WebsocketStreamConstants.CONNECTION_CLOSED
+        });
+        this.onConnectionClosed(null);
+    }
+
+    requestToRetry(){
         console.log("Requested client to restart");
 
-        const data = {command: 'START_FROM_BEGINNING'};
-        if (client_id != null)
-            data.id = client_id;
+        const data = {command: 'START_FROM_BEGINNING', id: this.senderId};
         receiverAudioStreamWebsocket.sendData(data)
         receiverAudioStreamWebsocket.clearPromiseQueue();
         receiverAudioStreamWebsocket.clearReceivedMessage();
     }
 
 
-    async receiveStreamLoopHandled(stoppingDeferred){
-        try{
-            await this.receiveStreamLoop(stoppingDeferred);
-        }catch (e) {
-            // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
-            if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
-                this.requestToRetry(e);
-            }else throw e
-        }
-    }
-
     /**
-     * @param {Deferred} stoppingDeferred
+     * blobJsonObj need to contain 2 key: blob and type.
+     * Type is a string that represents the blob's encoding
+     * blob is a string that represents the blob's data
+     * @param blobJsonObj
+     * @return {Promise<void>}
+     * @private
      */
-    async receiveStreamLoop(stoppingDeferred_){
-        let stoppingDeferred;
+    async _handleNewBlob(blobJsonObj){
+        this.inactiveTimer.resetTimer();
 
-        while (this.inactiveTimer.resetTimer()){
-            stoppingDeferred = Deferred.any([this.inactiveTimer.promise, stoppingDeferred_.promise]);
-
-            const newBlobStrDataDeferred = receiverAudioStreamWebsocket.getOrWaitForDataWithStoppingFlag(stoppingDeferred);
-            const newBlobStrData = await newBlobStrDataDeferred.promise;
-            if (newBlobStrData == null)
-                break
-
-            const parsed = JSON.parse(newBlobStrData);
-            if (this.currentSenderId == null) {
-                onListeningStarted()
-                this.currentSenderId = parsed.id;
-                this.mediaSourceIsFresh = false;
-                // let it async
-                receiverAudioStreamWebsocket.robustSendData({id: parsed.id,
-                    command: WebsocketStreamConstants.CONNECTION_ACCEPTED});
-            }
-            if (this.currentSenderId !== parsed.id){
-                // let it async
-                receiverAudioStreamWebsocket.robustSendData({id: parsed.id,
-                    command: WebsocketStreamConstants.CONNECTION_REJECTED});
-                continue;
-            }
-            await this.handleNewBlob(newBlobStrData);
-        }
-    }
-
-    async handleNewBlob(newBlobStrData){
-        const newBlob = await jsonStringToBlob(newBlobStrData);
+        const newBlob = await jsonObjectToBlob(blobJsonObj);
         if (this.sourceBuffer == null) {
             console.log("RESET SOURCE BUFFER of mediasource " + id(this.mediaSource));
             this.sourceBuffer = this.mediaSource.addSourceBuffer(newBlob.type);
@@ -176,7 +224,6 @@ class WebsocketAudioStreamLoop{
         }
 
         console.log("received new data ");
-        this.blobHistory.push(newBlob);
 
         const arrayBuffer = await newBlob.arrayBuffer();
         const sourceBufferUpdateFinished = new Deferred();
@@ -184,6 +231,21 @@ class WebsocketAudioStreamLoop{
 
         this.sourceBuffer.onupdateend = () => sourceBufferUpdateFinished.resolve();
         await sourceBufferUpdateFinished.promise;
+    }
+
+    /**
+     * @param {string} blobJsonObj
+     * @return {Promise<void>}
+     */
+    async robustHandleNewBlob(blobJsonObj){
+        try{
+            await this._handleNewBlob(blobJsonObj);
+        }catch (e) {
+            // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
+            if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
+                this.requestToRetry(e);
+            }else throw e
+        }
     }
 }
 
