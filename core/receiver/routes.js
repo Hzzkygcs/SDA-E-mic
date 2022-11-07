@@ -5,8 +5,9 @@ const {websocketStorages} = require("../common/client-websocket-storage");
 const router = express.Router();
 
 
-router.get("/", function (_req, res) {
-    res.render("receiver/receiver");
+router.get("/", function (req, res) {
+    const debugMode = req.query.debug;
+    res.render("receiver/receiver", { debugMode: debugMode != null, websocket: true });
 });
 
 router.ws('/ice-candidate',

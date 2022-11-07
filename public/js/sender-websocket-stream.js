@@ -6,13 +6,13 @@ const CMD_CONSTANTS = WebsocketStreamConstants;
 
 setTimeout(() => {
     console.assert(senderSdpWebsocket.websocket.readyState === 1);
-    console.log("assert");
+    debug("assert");
 }, 1000);
 
 
 async function getDevices(){
     const devices = await navigator.mediaDevices.enumerateDevices();
-    console.log(devices);
+    debug(devices);
 }
 
 
@@ -49,11 +49,13 @@ async function toggleMicrophoneMute(){
     started = !started;
     if (started) {
         onConnecting();
+        listeningToNewMesages = true;
+        checkIfNewMessageReceived();
         await senderAudioStreamWebsocket.robustSendData({
             id: THIS_SENDER_ID,
             command: CMD_CONSTANTS.REQUEST_TO_CONNECT
         });
-        console.log("sending data");
+        debug("sending data");
 
         // await startStream();
 
@@ -67,42 +69,43 @@ async function toggleMicrophoneMute(){
 
 
 async function init(){
-    console.log("clicked");
+    debug("clicked");
     senderSdpWebsocket.clearReceivedMessage();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: {
                 echoCancellation: {exact: true}
             }}});
 
-    console.log("gotten media");
+    debug("gotten media");
 
     const options = generateRecorderRtcOptions();
     options.ondataavailable = async (blob) => {
         const json = await blobToJsonString(blob, {id: THIS_SENDER_ID});
         await senderAudioStreamWebsocket.robustSendData(json, true);
-        console.log("sending new blob");
+        debug("sending new blob");
     }
 
     recorderRtc = new RecordRTC(stream, options);
 }
 
 
+let listeningToNewMesages = false
 async function checkIfNewMessageReceived(){
-    while (true){
+    while (listeningToNewMesages){
         const message = await senderAudioStreamWebsocket.getOrWaitForData();
-
+        debug(message);
         if ('id' in message && message.id !== THIS_SENDER_ID){
             // if this message was not for me
-            return;
+            continue;
         }
 
         const command = message.command;
-        console.log("Received command: " + command);
+        debug("Received command: " + command);
 
         if (command === CMD_CONSTANTS.UPDATE_QUEUE_STATUS) {
             const queue_number = parseInt(message['queue_num']);
-            console.log("My queue number: " + queue_number);
+            debug("My queue number: " + queue_number);
         }else if (command === CMD_CONSTANTS.START_FROM_BEGINNING){
-            console.log("Receiver requested to start from beginning");
+            debug("Receiver requested to start from beginning");
             await stopStream(micStream, rtcConnection);
             // await startStream();
             return false;
@@ -115,7 +118,6 @@ async function checkIfNewMessageReceived(){
     }
     // return true;
 }
-checkIfNewMessageReceived();
 
 
 async function startStream() {
@@ -128,9 +130,12 @@ let speakerElement = null;
 
 
 async function stopStream(micStream, rtcConnection){
+    listeningToNewMesages = false;
     started = false;
     onMuted();
-    recorderRtc.stopRecording(() => {});
+    if (recorderRtc != null)
+        recorderRtc.stopRecording(() => {});
+    recorderRtc = null;
     speakerElement = document.getElementById("speaker");
 }
 

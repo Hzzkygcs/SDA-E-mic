@@ -22,6 +22,12 @@
         }
         ]};
 
+        let DEBUG = false;
+        <% if (debugMode){ %>
+            DEBUG = true;
+        <% } %>
+
+
 <!--    <% if (process.env.NODE_ENV === 'development'){ %>-->
         // const WEBSOCKET_SERVER_ADDR = "ws://localhost:8080";
 <!--    <% }else{ %>-->

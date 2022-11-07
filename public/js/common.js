@@ -156,13 +156,15 @@ const id = (() => {
 
 
 
-
+let debug;
 document.addEventListener("DOMContentLoaded", () => {
-    let oldClog = console.log;
-    console.log = (obj) => {
-        oldClog.apply(console, [obj]);
-        const console_log_element = document.getElementById("console-log");
-        console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + obj;
+    debug = console.log;
+    if (DEBUG){
+        debug = (obj) => {
+            console.log.apply(console, [obj]);
+            const console_log_element = document.getElementById("console-log");
+            console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + obj;
+        }
     }
 
     window.onunhandledrejection = event => {

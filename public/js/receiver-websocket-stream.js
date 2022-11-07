@@ -6,7 +6,7 @@ async function toggleListeningUsingWebsocket(){
     }else {
         stopListeningUsingWebsocket();
         onListeningStopped();
-        console.log("listening stopped");
+        debug("listening stopped");
     }
 }
 
@@ -19,11 +19,15 @@ function stopListeningUsingWebsocket(){
 // receiver should only receive one peer at a time
 let startDeferred;
 async function startListeningUsingWebsocket(){
+    await ConnectionListener.stopAllClient();
+    receiverAudioStreamWebsocket.clearReceivedMessage();
+    receiverAudioStreamWebsocket.clearPromiseQueue();
+
     const audioElement = document.getElementById('speaker-for-websocket');
-    loops = new ConnectionListener(audioElement);
+    loops = new ConnectionListener();
     startDeferred = new Deferred();
     loops.start(startDeferred);
-    console.log("listening");
+    debug("listening");
 }
 
 var errr;
@@ -65,16 +69,21 @@ class ConnectionListener{
     async handleCommand(parsedCommand){
         if (parsedCommand.command === WebsocketStreamConstants.REQUEST_TO_CONNECT){
             this.senderQueue.push(parsedCommand.id);
-            await this.processNextQueue();
-            console.log(this.activeSender);
+            if (!await this.processNextQueue())
+                await receiverAudioStreamWebsocket.robustSendData({
+                    id: parsedCommand.id,
+                    command: WebsocketStreamConstants.UPDATE_QUEUE_STATUS,
+                    queue_num: this.senderQueue.length,
+                });
+            debug(this.activeSender);
         }
     }
 
     async handleBlobDataForwarding(parsedData){
         if (!(parsedData.id in this.activeSender)){
-            console.log(parsedData);
-            console.log(this.activeSender);
-            console.log("Rejected an inactive sender: " + parsedData["id"]);
+            debug(parsedData);
+            debug(this.activeSender);
+            debug("Rejected an inactive sender: " + parsedData["id"]);
             await receiverAudioStreamWebsocket.robustSendData({
                 id: parsedData.id,
                 command: WebsocketStreamConstants.CONNECTION_REJECTED
@@ -89,27 +98,35 @@ class ConnectionListener{
         if (!(senderId in this.activeSender))
             return;
         delete this.activeSender[senderId];
+        this.processNextQueue();
+    }
+
+    getActiveSenderLength(){
+        return Object.keys(this.activeSender).length;
     }
 
     async processNextQueue() {
-        if (this.activeSender.length >= this.maximumActiveSender)
-            return;
+        if (this.getActiveSenderLength() >= this.maximumActiveSender)
+            return false;
         const sender_id = this.senderQueue.shift();
 
         this.activeSender[sender_id] = new ConnectionToClient(sender_id,
             () => this.deactivateSender(sender_id));
-        await this.activeSender[sender_id].resetMediaSource();
+        // let it async
+        this.activeSender[sender_id].resetMediaSource();
 
+        console.log("Sending connection accepted to " + sender_id);
         await receiverAudioStreamWebsocket.robustSendData({
             id: sender_id,
             command: WebsocketStreamConstants.CONNECTION_ACCEPTED
         });
         await this.notifyQueueUpdate();
+        return true;
     }
 
     async notifyQueueUpdate(){
         for (let i = 0; i < this.senderQueue.length; i++) {
-            const clientId = this.senderQueue.shift();
+            const clientId = this.senderQueue[i];
             await receiverAudioStreamWebsocket.robustSendData({
                 id: clientId,
                 command: WebsocketStreamConstants.UPDATE_QUEUE_STATUS,
@@ -118,8 +135,7 @@ class ConnectionListener{
         }
     }
 
-
-    async stopAllClient(){
+    static async stopAllClient(){
         this.activeSender = {};
         const data = {command: WebsocketStreamConstants.CONNECTION_CLOSED};
         await receiverAudioStreamWebsocket.sendData(data)
@@ -156,7 +172,7 @@ class ConnectionToClient{
 
 
     async resetMediaSource() {
-        console.log("RESET MEDIASOURCE");
+        debug("RESET MEDIASOURCE");
         console.assert(!this.mediaSourceIsFresh);
 
         this.sourceBuffer = null;
@@ -182,12 +198,12 @@ class ConnectionToClient{
             if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
                 this.requestToRetry(e);
                 await this.triggerConnectionClosed();
-            }else console.log(e.message);
+            }else debug(e.message);
         }
     }
 
     async triggerConnectionClosed(){
-        console.log("Conenction with " + this.senderId + " is closed");
+        debug("Conenction with " + this.senderId + " is closed");
         await receiverAudioStreamWebsocket.robustSendData({
             id: this.senderId,
             command: WebsocketStreamConstants.CONNECTION_CLOSED
@@ -196,7 +212,7 @@ class ConnectionToClient{
     }
 
     requestToRetry(){
-        console.log("Requested client to restart");
+        debug("Requested client to restart");
 
         const data = {command: 'START_FROM_BEGINNING', id: this.senderId};
         receiverAudioStreamWebsocket.sendData(data)
@@ -218,12 +234,12 @@ class ConnectionToClient{
 
         const newBlob = await jsonObjectToBlob(blobJsonObj);
         if (this.sourceBuffer == null) {
-            console.log("RESET SOURCE BUFFER of mediasource " + id(this.mediaSource));
+            debug("RESET SOURCE BUFFER of mediasource " + id(this.mediaSource));
             this.sourceBuffer = this.mediaSource.addSourceBuffer(newBlob.type);
             this.sourceBuffer.mode = 'sequence';
         }
 
-        console.log("received new data ");
+        debug("received new data ");
 
         const arrayBuffer = await newBlob.arrayBuffer();
         const sourceBufferUpdateFinished = new Deferred();
@@ -251,7 +267,7 @@ class ConnectionToClient{
 
 
 function applyFilter(context, element){
-    console.log("Applying filter");
+    debug("Applying filter");
     let sourceNode = context.createMediaElementSource(element);
     let lowshelf = context.createBiquadFilter();
     let highfilter = context.createBiquadFilter();

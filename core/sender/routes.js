@@ -8,17 +8,17 @@ const router = express.Router();
 
 router.get("/", function (req, res) {
     const debugMode = req.query.debug;
-    res.render("sender/sender-mode-selection", { debugMode: debugMode == null, websocket: true });
+    res.render("sender/sender-mode-selection", { debugMode: debugMode != null, websocket: true });
 });
 
 router.get("/websocket", function (req, res) {
     const debugMode = req.query.debug;
-    res.render("sender/sender-mic-page", { debugMode: debugMode == null, websocket: true });
+    res.render("sender/sender-mic-page", { debugMode: debugMode != null, websocket: true });
 });
 
 router.get("/webrtc", function (req, res) {
     const debugMode = req.query.debug;
-    res.render("sender/sender-mic-page", { debugMode: debugMode == null, websocket: false });
+    res.render("sender/sender-mic-page", { debugMode: debugMode != null, websocket: false });
 });
 
 
