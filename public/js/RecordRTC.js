@@ -410,7 +410,7 @@ function RecordRTC(mediaStream, config) {
         initRecorder: initRecorder,
 
         /**
-         * Ask RecordRTC to auto-stop the recording after 5 minutes.
+         * Ask RecordRTC to auto-clearTimeout the recording after 5 minutes.
          * @method
          * @memberof RecordRTC
          * @instance
@@ -724,7 +724,7 @@ function RecordRTC(mediaStream, config) {
          * // this looper function will keep you updated about the recorder's states.
          * (function looper() {
          *     document.querySelector('h1').innerHTML = 'Recorder\'s state is: ' + recorder.state;
-         *     if(recorder.state === 'stopped') return; // ignore+stop
+         *     if(recorder.state === 'stopped') return; // ignore+clearTimeout
          *     setTimeout(looper, 1000); // update after every 3-seconds
          * })();
          * recorder.startRecording();
@@ -1767,7 +1767,7 @@ if (typeof MediaStream === 'undefined' && typeof webkitMediaStream !== 'undefine
 
 /*global MediaStream:true */
 if (typeof MediaStream !== 'undefined') {
-    // override "stop" method for all browsers
+    // override "clearTimeout" method for all browsers
     if (typeof MediaStream.prototype.stop === 'undefined') {
         MediaStream.prototype.stop = function() {
             this.getTracks().forEach(function(track) {
@@ -2021,7 +2021,7 @@ function isMediaRecorderCompatible() {
  * }
  * var recorder = new MediaStreamRecorder(mediaStream, config);
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  *
  *     // or
@@ -2075,7 +2075,7 @@ function MediaStreamRecorder(mediaStream, config) {
     var arrayOfBlobs = [];
 
     /**
-     * This method returns array of blobs. Use only with "timeSlice". Its useful to preview recording anytime, without using the "stop" method.
+     * This method returns array of blobs. Use only with "timeSlice". Its useful to preview recording anytime, without using the "clearTimeout" method.
      * @method
      * @memberof MediaStreamRecorder
      * @example
@@ -2302,7 +2302,7 @@ function MediaStreamRecorder(mediaStream, config) {
      * @method
      * @memberof MediaStreamRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
@@ -2422,7 +2422,7 @@ function MediaStreamRecorder(mediaStream, config) {
      * @property {Blob} blob - Recorded data as "Blob" object.
      * @memberof MediaStreamRecorder
      * @example
-     * recorder.stop(function() {
+     * recorder.clearTimeout(function() {
      *     var blob = recorder.blob;
      * });
      */
@@ -2517,7 +2517,7 @@ if (typeof RecordRTC !== 'undefined') {
  *     bufferSize: 4096
  * });
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  * });
  * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
@@ -2837,14 +2837,14 @@ function StereoAudioRecorder(mediaStream, config) {
      * @method
      * @memberof StereoAudioRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
     this.stop = function(callback) {
         callback = callback || function() {};
 
-        // stop recording
+        // clearTimeout recording
         recording = false;
 
         mergeLeftRightBuffers({
@@ -2860,7 +2860,7 @@ function StereoAudioRecorder(mediaStream, config) {
              * @property {Blob} blob - The recorded blob object.
              * @memberof StereoAudioRecorder
              * @example
-             * recorder.stop(function(){
+             * recorder.clearTimeout(function(){
              *     var blob = recorder.blob;
              * });
              */
@@ -2872,7 +2872,7 @@ function StereoAudioRecorder(mediaStream, config) {
              * @property {ArrayBuffer} buffer - The recorded buffer object.
              * @memberof StereoAudioRecorder
              * @example
-             * recorder.stop(function(){
+             * recorder.clearTimeout(function(){
              *     var buffer = recorder.buffer;
              * });
              */
@@ -2882,7 +2882,7 @@ function StereoAudioRecorder(mediaStream, config) {
              * @property {DataView} view - The recorded data-view object.
              * @memberof StereoAudioRecorder
              * @example
-             * recorder.stop(function(){
+             * recorder.clearTimeout(function(){
              *     var view = recorder.view;
              * });
              */
@@ -3231,7 +3231,7 @@ if (typeof RecordRTC !== 'undefined') {
  * @example
  * var recorder = new CanvasRecorder(htmlElement, { disableLogs: true, useWhammyRecorder: true });
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  * });
  * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
@@ -3377,7 +3377,7 @@ function CanvasRecorder(htmlElement, config) {
      * @method
      * @memberof CanvasRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
@@ -3396,7 +3396,7 @@ function CanvasRecorder(htmlElement, config) {
              * @property {Blob} blob - Recorded frames in video/webm blob.
              * @memberof CanvasRecorder
              * @example
-             * recorder.stop(function() {
+             * recorder.clearTimeout(function() {
              *     var blob = recorder.blob;
              * });
              */
@@ -3569,7 +3569,7 @@ if (typeof RecordRTC !== 'undefined') {
  * @example
  * var recorder = new WhammyRecorder(mediaStream);
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  * });
  * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
@@ -3820,7 +3820,7 @@ function WhammyRecorder(mediaStream, config) {
      * @method
      * @memberof WhammyRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
@@ -3847,7 +3847,7 @@ function WhammyRecorder(mediaStream, config) {
                  * @property {Blob} blob - Recorded frames in video/webm blob.
                  * @memberof WhammyRecorder
                  * @example
-                 * recorder.stop(function() {
+                 * recorder.clearTimeout(function() {
                  *     var blob = recorder.blob;
                  * });
                  */
@@ -4560,7 +4560,7 @@ if (typeof RecordRTC !== 'undefined') {
  * @example
  * var recorder = new GifRecorder(mediaStream || canvas || context, { onGifPreview: function, onGifRecordingStarted: function, width: 1280, height: 720, frameRate: 200, quality: 10 });
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     img.src = URL.createObjectURL(blob);
  * });
  * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
@@ -4713,7 +4713,7 @@ function GifRecorder(mediaStream, config) {
      * @method
      * @memberof GifRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     img.src = URL.createObjectURL(blob);
      * });
      */
@@ -4730,7 +4730,7 @@ function GifRecorder(mediaStream, config) {
          * @property {Blob} blob - The recorded blob object.
          * @memberof GifRecorder
          * @example
-         * recorder.stop(function(){
+         * recorder.clearTimeout(function(){
          *     var blob = recorder.blob;
          * });
          */
@@ -5017,7 +5017,7 @@ function MultiStreamsMixer(arrayOfMediaStreams, elementClass) {
 
     /*global MediaStream:true */
     if (typeof MediaStream !== 'undefined') {
-        // override "stop" method for all browsers
+        // override "clearTimeout" method for all browsers
         if (typeof MediaStream.prototype.stop === 'undefined') {
             MediaStream.prototype.stop = function() {
                 this.getTracks().forEach(function(track) {
@@ -5433,7 +5433,7 @@ if (typeof RecordRTC === 'undefined') {
  * }
  * var recorder = new MultiStreamRecorder(ArrayOfMediaStreams, options);
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  *
  *     // or
@@ -5519,7 +5519,7 @@ function MultiStreamRecorder(arrayOfMediaStreams, options) {
      * @method
      * @memberof MultiStreamRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
@@ -5947,7 +5947,7 @@ if (typeof RecordRTC !== 'undefined') {
  * @example
  * var recorder = new WebAssemblyRecorder(mediaStream);
  * recorder.record();
- * recorder.stop(function(blob) {
+ * recorder.clearTimeout(function(blob) {
  *     video.src = URL.createObjectURL(blob);
  * });
  * @see {@link https://github.com/muaz-khan/RecordRTC|RecordRTC Source Code}
@@ -6156,7 +6156,7 @@ function WebAssemblyRecorder(stream, config) {
      * @method
      * @memberof WebAssemblyRecorder
      * @example
-     * recorder.stop(function(blob) {
+     * recorder.clearTimeout(function(blob) {
      *     video.src = URL.createObjectURL(blob);
      * });
      */
@@ -6199,7 +6199,7 @@ function WebAssemblyRecorder(stream, config) {
      * @property {Blob} blob - The recorded blob object.
      * @memberof WebAssemblyRecorder
      * @example
-     * recorder.stop(function(){
+     * recorder.clearTimeout(function(){
      *     var blob = recorder.blob;
      * });
      */

@@ -42,7 +42,7 @@ async function createOffer(stream){
     }
 
     // const stopListeningToIceCandidate = listenToIceCandidateSignal(rtcConnection, senderIceCandidateWebsocket);
-    // TODO: stop listening when connection is closed
+    // TODO: clearTimeout listening when connection is closed
 
 
     let offer = await rtcConnection.createOffer();

@@ -23,14 +23,18 @@
 </head>
 <body>
     <div class="container center">
+
+        <div id="queue-number-div" class="hidden-by-opacity">
+            Queue Number: <div id="queue-number" style="display: inline-block"></div>
+            <br>
+            <br>
+        </div>
         <button id="speaker-or-mic-btn" class="muted btn" onclick="toggleMicrophoneMute()" style="font-size: 25px;">
             <i class="muted-icon btn-label fa-solid fa-microphone-lines-slash"></i>
             <i class="connecting-icon btn-label fa-solid fa-microphone-lines-slash"></i>
             <i class="unmuted-icon btn-label fa-solid fa-microphone-lines"></i>
         </button>
         <audio id="speaker" autoplay></audio>
-
-
     </div>
     <p id="console-log"
        class="<% if(debugMode){ %> hidden <% } %>"

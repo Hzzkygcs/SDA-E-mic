@@ -53,13 +53,15 @@ function sleep(ms, returnValue=null) {
 }
 
 class Timer extends Deferred{
-    constructor(ms, returnValue=null, listener=null){
+    constructor(ms, returnValue=null, listener=null, startImmediately=true){
         super();
 
         this.ms = ms;
         this.returnValue = returnValue;
         this.timeout = null;
         this.listener = listener;
+        if (startImmediately)
+            this.resetTimer();
     }
 
     forceResetTimer(new_ms = null){
@@ -67,23 +69,28 @@ class Timer extends Deferred{
         this.resetTimer(new_ms);
     }
 
-    resetTimer(new_ms = null){
-        if (this.state !== Deferred.PENDING)
-            return false;
-
-        if (new_ms != null)
-            this.ms = new_ms;
-
+    clearTimeout(){
         if (this.timeout != null){
             clearTimeout(this.timeout);
         }
+    }
+
+    resetTimer(temporary_ms = null){
+        if (this.state !== Deferred.PENDING)
+            return false;
+
+        this.clearTimeout();
         this.timeout = setTimeout(() => {
-            this.resolve(this.returnValue);
-            if (this.listener != null)
-                this.listener(this.returnValue);
-        }, this.ms);
+            this.onTimeout();
+        }, (temporary_ms == null)? this.ms : temporary_ms);
 
         return true;
+    }
+
+    onTimeout(){
+        this.resolve(this.returnValue);
+        if (this.listener != null)
+            this.listener(this.returnValue);
     }
 }
 
@@ -160,10 +167,18 @@ let debug;
 document.addEventListener("DOMContentLoaded", () => {
     debug = console.log;
     if (DEBUG){
-        debug = (obj) => {
-            console.log.apply(console, [obj]);
+        debug = (...obj) => {
+            console.log(...obj);
+            console.log("AAA");
             const console_log_element = document.getElementById("console-log");
-            console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + obj;
+            let strBuild = "";
+            for (let i = 0; i < obj.length; i++) {
+                const temp = (
+                    ((typeof obj[i]) == 'object')? JSON.stringify(obj[i]) : obj[i]
+                );
+                strBuild += temp + " ";
+            }
+            console_log_element.innerHTML = console_log_element.innerHTML + "<br>" + strBuild;
         }
     }
 

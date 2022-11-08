@@ -18,13 +18,14 @@ function stopListeningUsingWebsocket(){
 
 // receiver should only receive one peer at a time
 let startDeferred;
+let loops;
 async function startListeningUsingWebsocket(){
-    await ConnectionListener.stopAllClient();
     receiverAudioStreamWebsocket.clearReceivedMessage();
     receiverAudioStreamWebsocket.clearPromiseQueue();
 
-    const audioElement = document.getElementById('speaker-for-websocket');
     loops = new ConnectionListener();
+    loops.stopAllClient();
+
     startDeferred = new Deferred();
     loops.start(startDeferred);
     debug("listening");
@@ -41,10 +42,9 @@ class ConnectionListener{
     async start(stoppingDeferred){
         this.senderQueue = [];
         this.activeSender = {};
-        this.maximumActiveSender = 1;
+        this.maximumActiveSender = 2;
         await this.receiveStreamLoop(stoppingDeferred);
     }
-
 
 
     /**
@@ -67,6 +67,10 @@ class ConnectionListener{
     }
 
     async handleCommand(parsedCommand){
+        if (parsedCommand.id == null){
+            debug("ignoring a command without id: ", parsedCommand);
+            return;
+        }
         if (parsedCommand.command === WebsocketStreamConstants.REQUEST_TO_CONNECT){
             this.senderQueue.push(parsedCommand.id);
             if (!await this.processNextQueue())
@@ -76,6 +80,10 @@ class ConnectionListener{
                     queue_num: this.senderQueue.length,
                 });
             debug(this.activeSender);
+        }else if (parsedCommand.command === WebsocketStreamConstants.CONNECTION_CLOSED){
+            if (parsedCommand.id in this.activeSender){
+                await this.activeSender[parsedCommand.id].triggerConnectionClosed();
+            }
         }
     }
 
@@ -108,6 +116,8 @@ class ConnectionListener{
     async processNextQueue() {
         if (this.getActiveSenderLength() >= this.maximumActiveSender)
             return false;
+        if (this.senderQueue.length === 0)
+            return false;
         const sender_id = this.senderQueue.shift();
 
         this.activeSender[sender_id] = new ConnectionToClient(sender_id,
@@ -135,7 +145,7 @@ class ConnectionListener{
         }
     }
 
-    static async stopAllClient(){
+    async stopAllClient(){
         this.activeSender = {};
         const data = {command: WebsocketStreamConstants.CONNECTION_CLOSED};
         await receiverAudioStreamWebsocket.sendData(data)
@@ -157,7 +167,7 @@ class ConnectionToClient{
          * @type {null | MediaSource}
          */
         this.mediaSource = null;
-        this.inactiveTimer = new Timer(1500, null, () => this.triggerConnectionClosed());
+        this.inactiveTimer = new Timer(1700, null, () => this.triggerConnectionClosed());
         this.onConnectionClosed = onConnectionClosed;
 
         /**
@@ -167,7 +177,8 @@ class ConnectionToClient{
         this.applyFilter = false;
         this.mediaSourceIsFresh = false;
         this.context = new AudioContext();
-
+        this.mediaSourceOpenDeferred = new Deferred();
+        this.temporaryBlobStorage = [];
     }
 
 
@@ -183,10 +194,13 @@ class ConnectionToClient{
         if (this.applyFilter)
             applyFilter(this.context, this.audioElement);
         this.playAudioElement();
-        const sourceOpenDeferred = new Deferred();
-        this.mediaSource.onsourceopen = () => sourceOpenDeferred.resolve();
+        this.mediaSourceOpenDeferred = new Deferred();
+        this.mediaSource.onsourceopen = () => {
+            this.mediaSourceOpenDeferred.resolve();
+        }
 
-        await sourceOpenDeferred.promise;
+        await this.mediaSourceOpenDeferred.promise;
+        console.log("Mediasource opened");
     }
 
     async playAudioElement(){
@@ -196,8 +210,7 @@ class ConnectionToClient{
             errr = e
             // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
             if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
-                this.requestToRetry(e);
-                await this.triggerConnectionClosed();
+                await this.requestToRetry(e);
             }else debug(e.message);
         }
     }
@@ -211,13 +224,12 @@ class ConnectionToClient{
         this.onConnectionClosed(null);
     }
 
-    requestToRetry(){
+    async requestToRetry(){
         debug("Requested client to restart");
 
         const data = {command: 'START_FROM_BEGINNING', id: this.senderId};
         receiverAudioStreamWebsocket.sendData(data)
-        receiverAudioStreamWebsocket.clearPromiseQueue();
-        receiverAudioStreamWebsocket.clearReceivedMessage();
+        await this.triggerConnectionClosed();
     }
 
 
@@ -232,16 +244,15 @@ class ConnectionToClient{
     async _handleNewBlob(blobJsonObj){
         this.inactiveTimer.resetTimer();
 
-        const newBlob = await jsonObjectToBlob(blobJsonObj);
         if (this.sourceBuffer == null) {
             debug("RESET SOURCE BUFFER of mediasource " + id(this.mediaSource));
-            this.sourceBuffer = this.mediaSource.addSourceBuffer(newBlob.type);
+            this.sourceBuffer = this.mediaSource.addSourceBuffer(blobJsonObj.type);
             this.sourceBuffer.mode = 'sequence';
         }
 
         debug("received new data ");
-
-        const arrayBuffer = await newBlob.arrayBuffer();
+        const blob = await jsonObjectToBlob(blobJsonObj);
+        const arrayBuffer = await blob.arrayBuffer();
         const sourceBufferUpdateFinished = new Deferred();
         this.sourceBuffer.appendBuffer(arrayBuffer);
 
@@ -250,17 +261,36 @@ class ConnectionToClient{
     }
 
     /**
-     * @param {string} blobJsonObj
+     * @param {any} blobJsonObj
      * @return {Promise<void>}
      */
     async robustHandleNewBlob(blobJsonObj){
         try{
-            await this._handleNewBlob(blobJsonObj);
+            this.inactiveTimer.resetTimer();
+            this.temporaryBlobStorage.push(blobJsonObj);
+
+            if (this.mediaSourceOpenDeferred.state === Deferred.RESOLVED){
+                while (this.temporaryBlobStorage.length)
+                    await this._handleNewBlob(this.temporaryBlobStorage.shift());
+            }
         }catch (e) {
-            // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
-            if (e instanceof DOMException && e.message.includes('This SourceBuffer has been removed')){
-                this.requestToRetry(e);
-            }else throw e
+            let handled = false;
+
+
+            if (e instanceof DOMException){
+                if (
+                    // Failed to execute 'appendBuffer' on 'SourceBuffer': This SourceBuffer has been removed from the parent media source.
+                    e.message.includes('This SourceBuffer has been removed')
+                    || e.message.includes('The MediaSource\'s readyState is not \'open\'.')
+                ){
+                    handled = true
+                    await this.requestToRetry(e);
+                }
+            }
+            if (!handled){
+                // await this.requestToRetry();
+                throw e;
+            }
         }
     }
 }
