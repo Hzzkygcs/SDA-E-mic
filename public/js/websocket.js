@@ -59,6 +59,10 @@ class WebsocketCommunicationProtocol{
                     deferred.resolve(true);
             }
         };
+        this.websocket.onclose = (e) => {
+            this._setState(WebsocketCommunicationProtocol.OPENING);
+            this.reconnect();
+        }
     }
     isOpen() { return this.websocket.readyState === WebSocket.OPEN }
     isClosed() { return this.websocket.readyState === WebSocket.CLOSED }

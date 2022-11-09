@@ -35,6 +35,10 @@ class WebsocketStorage{
         }
         return this.senderWebsocketConnections;
     }
+
+    getLength(){
+        return this.senderWebsocketConnections.length;
+    }
 }
 
 

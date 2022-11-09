@@ -169,12 +169,11 @@ $( document ).ready(function() {
     if (DEBUG){
         debug = (...obj) => {
             console.log(...obj);
-            console.log("AAA");
             const console_log_element = document.getElementById("console-log");
             let strBuild = "";
-            for (let i = 0; i < obj.length; i++) {
+            for (const element of obj) {
                 const temp = (
-                    ((typeof obj[i]) == 'object')? JSON.stringify(obj[i]) : obj[i]
+                    ((typeof element) == 'object') ? JSON.stringify(element) : element
                 );
                 strBuild += temp + " ";
             }

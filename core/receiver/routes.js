@@ -58,6 +58,9 @@ router.ws('/audio-stream',
         console.log("new receiver connected (audio-stream)");
 
         ws.on('message', function(msg) {
+            if (msg.length <= 70)
+                console.log(`to sender (${websocketStorages.senderAudioStream.getLength()}): `, msg);
+
             websocketStorages.senderAudioStream.getWebsockets().forEach(client => {
                 client.send(msg)
             });
