@@ -1,4 +1,14 @@
-const receiverAudioStreamWebsocket = new WebsocketCommunicationProtocol("/receiver/audio-stream");
+const receiverAudioStreamWebsocket = new WebsocketCommunicationProtocol(
+    "/receiver/audio-stream", false, (newState) => {
+        if (newState === WebsocketCommunicationProtocol.OPENING){
+            onWebsocketConnecting();
+        }else onWebsocketConnected();
+    }
+);
+$( document ).ready(function() {
+    onWebsocketConnecting();
+    receiverAudioStreamWebsocket.reconnect();
+});
 
 async function toggleListeningUsingWebsocket(){
     if (startDeferred == null){

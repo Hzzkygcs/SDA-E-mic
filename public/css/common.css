@@ -55,8 +55,8 @@ html, body{
     background-color: #ffb634;
 }
 
-#queue-number-div{
-    color: #ffaf1a;
+#status-div{
+    color: #a8a8a8;
     font-weight: bold;
     font-size: 25pt;
     font-family: Calibri;

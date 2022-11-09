@@ -164,7 +164,7 @@ const id = (() => {
 
 
 let debug;
-document.addEventListener("DOMContentLoaded", () => {
+$( document ).ready(function() {
     debug = console.log;
     if (DEBUG){
         debug = (...obj) => {
@@ -186,6 +186,55 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(`${event.reason}`);
     };
 });
+
+
+/* =========================================================== */
+
+function onWebsocketConnecting(){
+    const button = document.getElementById("speaker-or-mic-btn");
+    button.disabled = true;
+    showStatus();
+    setStatusLabel("Connecting...");
+    setStatusValue("");
+}
+function onWebsocketConnected(){
+    const button = document.getElementById("speaker-or-mic-btn");
+    button.disabled = false;
+    showStatus();
+    setStatusLabel("Connected");
+    setStatusValue("");
+
+}
+
+function setStatusLabel(newLabel){
+    const label_element = document.getElementById("status-label");
+    label_element.innerHTML = newLabel;
+}
+function setStatusValue(newValue){
+    const value_element = document.getElementById("status-value");
+    value_element.innerHTML = newValue;
+}
+function showStatus(){
+    const container_element = document.getElementById("status-div");
+    container_element.classList.remove("hidden-by-opacity");
+}
+function hideStatus(){
+    const container_element = document.getElementById("status-div");
+    container_element.classList.add("hidden-by-opacity");
+}
+
+/* =========================================================== */
+
+
+
+
+
+
+
+
+
+
+
 
 
 /**

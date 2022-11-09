@@ -1,6 +1,10 @@
 class CancelledPromiseQueueError extends Error{}
 
 class WebsocketCommunicationProtocol{
+    static OPENED = 'open';
+    static OPENING = 'opening';
+    static STATES = [WebsocketCommunicationProtocol.OPENED, WebsocketCommunicationProtocol.OPENING];
+
     websocket = null;
     receivedMessagesQueue = [];
     /**
@@ -13,17 +17,28 @@ class WebsocketCommunicationProtocol{
      */
     listeners = [];
 
-    constructor(path) {
+    constructor(path, connectImmediately=true, stateChangedListener=null) {
         this.path = path;
         /**
          * @type {WebSocket | null}
          */
         this.websocket = null;
-        this.reconnect();
+        this._state = WebsocketCommunicationProtocol.OPENING;
+        if (connectImmediately)
+            this.reconnect();
         /**
          * @type {Deferred[]}
          */
         this.awaitToOpen = [];
+        this.onStateChanged = stateChangedListener;
+    }
+
+    _setState(newState){
+        console.assert(WebsocketCommunicationProtocol.STATES.includes(newState));
+        const oldState = this._state;
+        this._state = newState;
+        if (this.onStateChanged != null && this._state !== oldState)
+            this.onStateChanged(newState);
     }
 
     addListener(func){
@@ -31,10 +46,14 @@ class WebsocketCommunicationProtocol{
     }
 
     reconnect(){
-        console.log("Reconnecting websocket");
+        console.log("Connecting websocket");
+        this._setState(WebsocketCommunicationProtocol.OPENING);
         this.websocket = new WebSocket(WEBSOCKET_SERVER_ADDR + this.path);
         this.websocket.onmessage = (message) => {this._onReceiveMessage(message)};
         this.websocket.onopen = (e) => {
+            this._setState(WebsocketCommunicationProtocol.OPENED);
+            console.log("Conencted");
+
             for (const deferred of this.awaitToOpen) {
                 if (deferred.state === Deferred.PENDING)
                     deferred.resolve(true);

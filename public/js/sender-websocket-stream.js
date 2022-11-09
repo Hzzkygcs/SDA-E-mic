@@ -1,13 +1,19 @@
-const senderSdpWebsocket = new WebsocketCommunicationProtocol("/sender/sdp");
-const senderAudioStreamWebsocket = new WebsocketCommunicationProtocol("/sender/audio-stream");
+const senderAudioStreamWebsocket = new WebsocketCommunicationProtocol(
+    "/sender/audio-stream", false, (newState) => {
+        if (newState === WebsocketCommunicationProtocol.OPENING){
+            onWebsocketConnecting();
+        }else onWebsocketConnected();
+    }
+);
+$( document ).ready(function() {
+    onWebsocketConnecting();
+    senderAudioStreamWebsocket.reconnect();
+});
+
 
 let THIS_SENDER_ID = Math.floor(Math.random() * 10000);
 const CMD_CONSTANTS = WebsocketStreamConstants;
 
-setTimeout(() => {
-    console.assert(senderSdpWebsocket.websocket.readyState === 1);
-    debug("assert");
-}, 1000);
 
 
 async function getDevices(){
@@ -15,11 +21,6 @@ async function getDevices(){
     debug(devices);
 }
 
-
-async function onDisconnected(e){
-    started = true;
-    await toggleMicrophoneMute()
-}
 
 
 
@@ -34,12 +35,26 @@ function onConnecting() {
     document.getElementById("speaker-or-mic-btn").classList.add("connecting");
 }
 
-
 function onUnmuted() {
     hideQueueStatus();
     document.getElementById("speaker-or-mic-btn").classList.remove("muted");
     document.getElementById("speaker-or-mic-btn").classList.remove("connecting");
 }
+
+
+
+function setQueueNumber(newQueueNumber){
+    setStatusLabel("Queue Number:");
+    showStatus();
+    setStatusValue(newQueueNumber);
+    debug("My queue number: " + newQueueNumber);
+}
+function hideQueueStatus(){
+    if (!listeningToNewMesages)
+        return;
+    hideStatus();
+}
+
 
 
 
@@ -54,6 +69,7 @@ let closeConnectionTimer = null;
 async function toggleMicrophoneMute(){
     started = !started;
     if (started) {
+        hideStatus();
         await requestToStartSending();
     }else {
         document.getElementById("speaker-or-mic-btn").classList.toggle("muted");
@@ -87,7 +103,6 @@ async function requestToStartSending(){
 
 async function init(){
     debug("clicked");
-    senderSdpWebsocket.clearReceivedMessage();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: {echoCancellation: {
                 echoCancellation: {exact: true}
             }}});
@@ -108,17 +123,6 @@ async function init(){
 
 
 
-function showQueueStatus(){
-    const queue_div = document.getElementById("queue-number-div");
-    queue_div.classList.remove("hidden-by-opacity");
-}
-function hideQueueStatus(){
-    if (!listeningToNewMesages)
-        return;
-    const queue_div = document.getElementById("queue-number-div");
-    queue_div.classList.add("hidden-by-opacity");
-}
-
 
 let listeningToNewMesages = false
 async function checkIfNewMessageReceived(){
@@ -137,10 +141,7 @@ async function checkIfNewMessageReceived(){
         debug("Received command: " + command);
 
         if (command === CMD_CONSTANTS.UPDATE_QUEUE_STATUS) {
-            showQueueStatus();
-            const queue_number_element = document.getElementById("queue-number");
-            queue_number_element.innerHTML = message['queue_num'];
-            debug("My queue number: " + message['queue_num']);
+            setQueueNumber(message['queue_num']);
 
             if (closeConnectionTimer != null) {
                 closeConnectionTimer.clearTimeout();

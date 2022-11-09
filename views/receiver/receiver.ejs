@@ -16,7 +16,13 @@
 </head>
 <body>
     <div class="container center">
-<!--        <input id="listen-button" type="button" value="start listening" onclick="startListeningUsingWebsocket();">-->
+
+        <div id="status-div" class="hidden-by-opacity">
+            <div id="status-label" style="display: inline-block;"></div>
+            <div id="status-value" style="display: inline-block"></div>
+            <br>
+            <br>
+        </div>
         <button id="speaker-or-mic-btn" class="muted btn" onclick="toggleListeningUsingWebsocket(); toggleWebRtc()" style="font-size: 25px;">
             <i class="muted-icon btn-label fa-solid fa-volume-xmark"></i>
             <i class="connecting-icon btn-label fa-solid fa-volume-high"></i>
