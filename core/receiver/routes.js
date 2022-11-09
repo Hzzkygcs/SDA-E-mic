@@ -5,7 +5,7 @@ const {websocketStorages} = require("../common/client-websocket-storage");
 const router = express.Router();
 
 
-router.get("/", function (req, res) {
+router.get("/sda", function (req, res) {
     const debugMode = req.query.debug;
     res.render("receiver/receiver", { debugMode: debugMode != null, websocket: true });
 });
