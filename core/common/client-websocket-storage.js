@@ -28,7 +28,7 @@ class WebsocketStorage{
 
             if (client.readyState === WebSocket.CLOSED || client.readyState === WebSocket.CLOSING){
                 const temp = this.removeSenderWebsocket(i);
-                console.log("removed: " + temp);
+                console.log(`removed client. ${this.senderWebsocketConnections.length} remaining`);
                 continue;
             }
             i++;
@@ -50,6 +50,8 @@ const websocketStorages = {
     receiverIceCandidate: new WebsocketStorage(),
     receiverSdp: new WebsocketStorage(),
     receiverAudioStream: new WebsocketStorage(),
+
+    console: new WebsocketStorage(),
 }
 
 module.exports.websocketStorages = websocketStorages;
